@@ -30,16 +30,14 @@ def main() -> None:
             # list of dictionaries of format [{ 'id': , 'title':, 'description':},...]
             movies = movies_data['movies']
 
-            tokens = Preprocessing(args.query).stop_words()   # query text is processed stop_words (refer cli/notes.md {1.0.1})
-            for movie in movies:
-                for token in tokens:
-                    if token in movie['title'].lower():
-                        if len(results) == 5:   #limiting search upto 5 results
-                            break
+            tokens = Preprocessing(args.query).stemming()   # query text is processed (refer cli/notes.md {1.0.1})
+            for movie in movies:    # searching the dataset
+                if any(token in movie['title'].lower() for token in tokens):
+                    if len(results) == 5:   #limiting search upto 5 results
+                        break
                     
-                        results.append(movie)
-                        break   # Stop checking tokens for THIS movie once a match is found
-
+                    results.append(movie)
+            
             # sort the results-list (containing dict elements) using the key='id'
             results.sort(key=itemgetter('id'))
 

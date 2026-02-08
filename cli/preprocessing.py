@@ -27,8 +27,8 @@
 
 """
 import string
-
 from pathlib import Path
+from nltk.stem import PorterStemmer
 
 class Preprocessing:
     def __init__(self, text):
@@ -41,6 +41,7 @@ class Preprocessing:
         return punctuated_text
         
     def tokenization(self):
+        """ Implements word-based tokenization for keyword search """
         punctuated_text = self.remove_punctuation()
         tokens = punctuated_text.split()
 
@@ -61,19 +62,19 @@ class Preprocessing:
             print("File: stopwords.txt not found")
 
         for token in tokens:    # takes individual token from query
-            if token in stop_words:    # checks if the token is a stop_word
-                tokens.remove(token)
+            if token in stop_words:    # checks if the token is a stop_word (low-value token)
+                tokens.remove(token)    # Low-value tokens are removed
      
         return tokens
     
     def stemming(self):
-        pass
+        """
+            Reduce tokens to their root form. 
+            This helps match different variations of the same word
+        """
+        stemmer = PorterStemmer()
+        high_value_tokens = self.stop_words()
 
-#text_1 = 'Boots the bear!'
-#text_2 = 'The wonderful bear, Boots'
-#punct_1 = Preprocessing(text_2).stop_words()
-#punct_2 = Preprocessing(text_2).tokenisation()
+        stemmed_tokens = [ stemmer.stem(token) for token in high_value_tokens]
 
-
-#print(punct_1)
-#print(punct_2)
+        return stemmed_tokens

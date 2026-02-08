@@ -35,7 +35,8 @@ Stop words: Remove common stop words that don't add much meaning
     ["a", "puppy"] becomes ["puppy"]
 
 Stemming: Keep only the stem of words
-
+    ![alt text](image.png)
+    
     ["running", "jumping"] becomes ["run", "jump"]
     ["watching", "windmills"] becomes ["watch", "windmill"]
 
