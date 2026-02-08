@@ -33,13 +33,14 @@ def main() -> None:
             tokens = Preprocessing(args.query).stop_words()   # query text is processed stop_words (refer cli/notes.md {1.0.1})
             for movie in movies:
                 for token in tokens:
-                    if token in movie['title'].lower() and movie not in results:
+                    if token in movie['title'].lower():
                         if len(results) == 5:   #limiting search upto 5 results
                             break
                     
                         results.append(movie)
+                        break   # Stop checking tokens for THIS movie once a match is found
 
-            # sort the results-list (containing dict) using the key='id'
+            # sort the results-list (containing dict elements) using the key='id'
             results.sort(key=itemgetter('id'))
 
             # Output to the User
