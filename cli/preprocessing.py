@@ -1,46 +1,79 @@
 """
-Docstring for preprocessing.punctaution
+    preprocessing.Preprocessing
 
-    This module is responsible in punctuation removal in text
-    
-    Refer (1.0.1)Text Processing in /cli/notes.md
+        This class processes text for better searching.
+        Refer {1.0.1} cli/notes.md
 
-    Basic working:
+        __init__ 
+            : params 
+                text (public)
 
-        "Hello, world!" -> "hello world"
-        "sci-fi" -> "scifi"
+            : Description
+            It also stages the Case Insensitivity part by converting
+            the text into lowercase
+
+        remove_punctuation 
+            : params 
+                translator (private)
+                punctuated_text (private)
+
+            : Description
+            removes punctuation like !,$,`,~  present in the text
+
+            Warning: might not remove hyphen (-)    {manually removed from tokens}
+
+        tokenization
+            : params  
+
 """
 import string
 
+from pathlib import Path
+
 class Preprocessing:
     def __init__(self, text):
-        self.text = text
+        self.text = text.lower()    # Case Insensitivity: make the text lowercase
 
-    def remove_punctaution(self) -> str:
+    def remove_punctuation(self) -> str:
         translator = str.maketrans('', '', string.punctuation)
         punctuated_text = self.text.translate(translator)
 
         return punctuated_text
         
-    def tokenisation(self):
-        punctuated_text = self.remove_punctaution()
+    def tokenization(self):
+        punctuated_text = self.remove_punctuation()
         tokens = punctuated_text.split()
 
         return tokens
     
     def stop_words(self):
-        tokens = self.tokenisation()
-        words = []
+        tokens = self.tokenization()
+        stop_words = []     # words which don't have much sematic meaning
 
-        return words
+        #filepath = f'{Path(__file__).resolve().parent.parent}/data/stopwords.txt'   # construct file path
+        filepath = Path(__file__).resolve().parent.parent / 'data' / 'stopwords.txt'    # for multi-OS support
+        try:
+            with open(filepath) as f:
+                for line in f:
+                    stop_words.append(line.strip())
+
+        except FileNotFoundError:
+            print("File: stopwords.txt not found")
+
+        for token in tokens:    # takes individual token from query
+            if token in stop_words:    # checks if the token is a stop_word
+                tokens.remove(token)
+     
+        return tokens
     
     def stemming(self):
         pass
 
 #text_1 = 'Boots the bear!'
 #text_2 = 'The wonderful bear, Boots'
-#punct_1 = Preprocessing(text_1).tokenisation()
+#punct_1 = Preprocessing(text_2).stop_words()
 #punct_2 = Preprocessing(text_2).tokenisation()
+
 
 #print(punct_1)
 #print(punct_2)

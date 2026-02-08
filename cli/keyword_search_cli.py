@@ -33,7 +33,7 @@ def main() -> None:
             tokens = Preprocessing(args.query).stop_words()   # query text is processed stop_words (refer cli/notes.md {1.0.1})
             for movie in movies:
                 for token in tokens:
-                    if token in movie['title'].lower():
+                    if token in movie['title'].lower() and movie not in results:
                         if len(results) == 5:   #limiting search upto 5 results
                             break
                     
