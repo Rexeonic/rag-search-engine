@@ -3,6 +3,7 @@
 import argparse
 import json
 from operator import itemgetter
+from pathlib import Path
 
 from preprocessing import Preprocessing
 
@@ -22,17 +23,18 @@ def main() -> None:
 
             results = []     # Output of search
 
-            with open('data/movies.json') as f:
+            dataset_path = Path(__file__).parent.parent / 'data' / 'movies.json'
+            with open(dataset_path) as f:
                 movies_data = json.load(f)      # is a dictionary
 
-            # list of dictionaries of format { 'id': , 'title':, 'description':}
+            # list of dictionaries of format [{ 'id': , 'title':, 'description':},...]
             movies = movies_data['movies']
 
-            tokens = Preprocessing(args.query.lower()).tokenisation()   # query text is converted into tokens
+            tokens = Preprocessing(args.query).stop_words()   # query text is processed stop_words (refer cli/notes.md {1.0.1})
             for movie in movies:
                 for token in tokens:
                     if token in movie['title'].lower():
-                        if len(results) == 5:
+                        if len(results) == 5:   #limiting search upto 5 results
                             break
                     
                         results.append(movie)
