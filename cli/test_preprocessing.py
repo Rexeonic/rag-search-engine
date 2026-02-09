@@ -16,12 +16,20 @@ class TestPreprocessing(unittest.TestCase):
         :Description 
             removes punctuation. Might fail on hyphens(-)
         """    
-        output = self.preprocessing.remove_punctaution()
+        output = self.preprocessing.remove_punctuation()
         self.assertEqual(output, 'the wonderful bear grizzly')
 
-    def test_tokenisation(self):
-        output = self.preprocessing.tokenisation()
+    def test_tokenization(self):
+        output = self.preprocessing.tokenization()
         self.assertEqual(output, ['the','wonderful', 'bear', 'grizzly'])
+
+    def test_stop_words(self):
+        output = self.preprocessing.stop_words()
+        self.assertEqual(output, ['wonderful', 'bear', 'grizzly'])
+
+    def test_stemming(self):
+        output = self.preprocessing.stemming()
+        self.assertEqual(output, ['wonder', 'bear', 'grizzli'])
     
 if __name__ == '__main__':
     unittest.main()
