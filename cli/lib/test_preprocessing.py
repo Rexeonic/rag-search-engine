@@ -30,6 +30,6 @@ class TestPreprocessing(unittest.TestCase):
     def test_stemming(self):
         output = self.preprocessing.stemming()
         self.assertEqual(output, ['wonder', 'bear', 'grizzli'])
-    
+
 if __name__ == '__main__':
     unittest.main()

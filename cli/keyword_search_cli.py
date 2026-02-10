@@ -5,7 +5,7 @@ import json
 from operator import itemgetter
 from pathlib import Path
 
-from preprocessing import Preprocessing
+from lib.preprocessing import Preprocessing
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
@@ -30,7 +30,7 @@ def main() -> None:
             # list of dictionaries of format [{ 'id': , 'title':, 'description':},...]
             movies = movies_data['movies']
 
-            tokens = Preprocessing(args.query).stemming()   # query text is processed (refer cli/notes.md {1.0.1})
+            tokens = Preprocessing(args.query).stemming()   # query text is processed {refer cli/preprocessing.py}
             for movie in movies:    # searching the dataset
                 if any(token in movie['title'].lower() for token in tokens):
                     if len(results) == 5:   #limiting search upto 5 results
@@ -38,7 +38,7 @@ def main() -> None:
                     
                     results.append(movie)
             
-            # sort the results-list (containing dict elements) using the key='id'
+            # sort results ( list[dict] ) using the key='id'
             results.sort(key=itemgetter('id'))
 
             # Output to the User
@@ -46,7 +46,10 @@ def main() -> None:
             for result in results:
                 print(f"{i}. {result['title']}\n")
                 i += 1
-   
+
+        case "build":
+            pass
+        
         case _:
             parser.print_help()
 

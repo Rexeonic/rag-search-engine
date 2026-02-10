@@ -6,7 +6,7 @@
 
         __init__ 
             : params 
-                text (public)
+                text (public) : str
 
             : Description
             It also stages the Case Insensitivity part by converting
@@ -24,6 +24,38 @@
 
         tokenization
             : params  
+                punctuated_text (private) : str
+                tokens (private) : List
+
+            : Description
+                'remove_punctuation' method is called and result is stored
+                in 'punctuated_text'.
+
+                'tokens' are created from 'punctuated_text' & is returned
+
+        stop_words
+            : params
+                tokens (private) : List
+                stop_words (private) : List
+
+            : Description
+                'tokens' are created by calling tokenization method
+
+                Low-value tokens are removed from 'tokens' list and
+                stored into 'stop_words' list.
+
+        stemming
+            : params
+                stemmer (private) : Instance of PorterStemmer() class
+                high_value_tokens (private) : List
+                stemmed_tokens (private) : List
+
+            : Description
+                'high_value_tokens' are created by calling the method 'stop_words'
+
+                Porter algorithm is used to stem words to their base form using
+                (PorterStemmer().stem() i.e stemmer.stem()) and stored into 
+                'stemmed_tokens'
 
 """
 import string
@@ -52,7 +84,8 @@ class Preprocessing:
         stop_words = []     # words which don't have much sematic meaning
 
         #filepath = f'{Path(__file__).resolve().parent.parent}/data/stopwords.txt'   # construct file path
-        filepath = Path(__file__).resolve().parent.parent / 'data' / 'stopwords.txt'    # for multi-OS support
+        filepath = Path(__file__).resolve().parent.parent.parent/'data'/'stopwords.txt'    # for multi-OS support
+        #print(filepath)
         try:
             with open(filepath) as f:
                 for line in f:
@@ -75,6 +108,6 @@ class Preprocessing:
         stemmer = PorterStemmer()
         high_value_tokens = self.stop_words()
 
-        stemmed_tokens = [ stemmer.stem(token) for token in high_value_tokens]
+        stemmed_tokens = [ stemmer.stem(token) for token in high_value_tokens ]
 
         return stemmed_tokens

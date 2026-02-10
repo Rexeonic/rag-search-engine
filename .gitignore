@@ -10,9 +10,9 @@ wheels/
 .venv
 
 # Data
-/data/
-/ruff/
+data/
+ruff/
 
 # My Personal
-/cli/notes.txt
+cli/notes.txt
 *.png
