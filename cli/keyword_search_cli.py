@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 from operator import itemgetter
 from pathlib import Path
+import pickle
 
-from lib.preprocessing import Preprocessing
+from lib.preprocessing import Preprocessing, GetData
+from lib.inverted_index import InvertedIndex
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
@@ -13,6 +14,9 @@ def main() -> None:
 
     search_parser = subparsers.add_parser("search", help="Search movies using BM25")
     search_parser.add_argument("query", type=str, help="Search query")
+
+    build_parser = subparsers.add_parser("build", help="Build Inverted Index for faster lookups")
+    # build_parser.add_argument("", type=None, help="Build query")
 
     args = parser.parse_args()
 
@@ -23,12 +27,8 @@ def main() -> None:
 
             results = []     # Output of search
 
-            dataset_path = Path(__file__).parent.parent / 'data' / 'movies.json'
-            with open(dataset_path) as f:
-                movies_data = json.load(f)      # is a dictionary
-
-            # list of dictionaries of format [{ 'id': , 'title':, 'description':},...]
-            movies = movies_data['movies']
+            movies_data = GetData('movies.json').get_file_data_json()   
+            movies = movies_data['movies']  # is a list[dict{'id':, 'title':, 'description':}]
 
             tokens = Preprocessing(args.query).stemming()   # query text is processed {refer cli/preprocessing.py}
             for movie in movies:    # searching the dataset
@@ -48,8 +48,14 @@ def main() -> None:
                 i += 1
 
         case "build":
-            pass
-        
+            index_builder = InvertedIndex().build()
+
+            docs_path = Path(__file__).resolve().parents[1]/'cache'/'index.pk1'
+            with open(docs_path, 'rb') as index_file:
+                docs = pickle.load(index_file)
+
+                print(f"First document for token 'merida' = {docs['merida']}")
+
         case _:
             parser.print_help()
 

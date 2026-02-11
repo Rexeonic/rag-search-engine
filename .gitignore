@@ -14,5 +14,5 @@ data/
 ruff/
 
 # My Personal
-cli/notes.txt
+cli/docs.md
 *.png

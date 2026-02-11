@@ -5,61 +5,55 @@
         Refer {1.0.1} cli/notes.md
 
         __init__ 
-            : params 
-                text (public) : str
+            :params text: (public) str
 
             : Description
             It also stages the Case Insensitivity part by converting
             the text into lowercase
 
-        remove_punctuation 
-            : params 
-                translator (private)
-                punctuated_text (private)
-
-            : Description
+        remove_punctuation
             removes punctuation like !,$,`,~  present in the text
-
             Warning: might not remove hyphen (-)    {manually removed from tokens}
 
-        tokenization
-            : params  
-                punctuated_text (private) : str
-                tokens (private) : List
+            :params translator: (private)
+            :params punctuated_text: (private)
 
-            : Description
-                'remove_punctuation' method is called and result is stored
+        tokenization
+            'remove_punctuation' method is called and result is stored
                 in 'punctuated_text'.
 
-                'tokens' are created from 'punctuated_text' & is returned
+            'tokens' are created from 'punctuated_text' & is returned
 
+            :params punctuated_text: (private) str
+            :params tokens: (private) List
+                
         stop_words
-            : params
-                tokens (private) : List
-                stop_words (private) : List
-
-            : Description
-                'tokens' are created by calling tokenization method
+            'tokens' are created by calling tokenization method
 
                 Low-value tokens are removed from 'tokens' list and
                 stored into 'stop_words' list.
 
+            :params tokens: (private) List
+            :params stop_words: (private) List
+
+            
+                
         stemming
-            : params
-                stemmer (private) : Instance of PorterStemmer() class
-                high_value_tokens (private) : List
-                stemmed_tokens (private) : List
+            'high_value_tokens' are created by calling the method 'stop_words'
 
-            : Description
-                'high_value_tokens' are created by calling the method 'stop_words'
+            Porter algorithm is used to stem words to their base form using
+            (PorterStemmer().stem() i.e stemmer.stem()) and stored into 
+            'stemmed_tokens'
 
-                Porter algorithm is used to stem words to their base form using
-                (PorterStemmer().stem() i.e stemmer.stem()) and stored into 
-                'stemmed_tokens'
+            :params stemmer: (private) Instance of PorterStemmer() class
+            :params high_value_tokens: (private) List
+            :params stemmed_tokens: (private) List
 
 """
+from pathlib import Path    # common imports of classes
+
+# class specific imports are above the classes
 import string
-from pathlib import Path
 from nltk.stem import PorterStemmer
 
 class Preprocessing:
@@ -111,3 +105,42 @@ class Preprocessing:
         stemmed_tokens = [ stemmer.stem(token) for token in high_value_tokens ]
 
         return stemmed_tokens
+
+import json # class specific imports are above the classes
+
+class GetData:
+    """ Searches the /data for file and returns the 
+        required data
+    """
+    def __init__(self, filename):
+        self.filename = filename
+        self.filepath = Path(__file__).resolve().parents[2]/'data'/self.filename
+
+    def get_file(self):
+        """ searches the file in /data directory 
+            return file descriptor (in read mode) - if file is found
+            return None - if file is not found
+        """
+        try:
+            with open(self.filepath, 'r') as f:
+                return f
+        except FileNotFoundError:
+                return None
+        
+    def get_file_data_json(self):
+        """ uses json.load to load the json file 
+            return None - if file not found
+        """
+        try:
+            with open(self.filepath, 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+                return None
+    
+    def get_file_data_txt(self):
+        """ uses .read() method to read the file """
+        pass
+
+
+#file = GetData('movies.json').get_file()
+#print(type(file))      
