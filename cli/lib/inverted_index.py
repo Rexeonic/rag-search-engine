@@ -2,7 +2,9 @@ from pathlib import Path
 import pickle
 import bisect
 
-from .preprocessing import Preprocessing, GetData
+from lib.preprocessing import Preprocessing, GetData
+
+file_path = Path(__file__).resolve().parents[2]/'cache'
 
 class InvertedIndex:
     def __init__(self):
@@ -25,10 +27,13 @@ class InvertedIndex:
                      a single string
         """
         tokens = Preprocessing(text).stop_words()   # removed non-relevant words
-        
+
         for token in tokens:
-            self.index[token] = self.get_document(token)
            
+            # appends a new document list to an existing index entry for a given token, 
+            # initializing it with an empty list if it doesn't exist.
+            self.index.setdefault(token, []).extend(self.get_document(token))
+            
             if doc_id not in self.index[token]:
                  # insert doc_id at right index
                 bisect.insort(self.index[token], doc_id)
@@ -41,13 +46,14 @@ class InvertedIndex:
         and return them as a list, sorted in ascending order
         """
         # get document id's for a given token
-        doc_id  = [ movie['id'] for movie in self.movies if term.lower() in movie['title'].lower()]
-        
-        # sort doc_id in ascending order 
-        if len(doc_id) > 1:
-            doc_id.sort()
+        doc_id_list  = [ movie['id'] for movie in self.movies if term.lower() in movie['title'].lower()]
+        doc_id_list = list(set(doc_id_list))
 
-        return doc_id
+        # sort doc_id in ascending order 
+        if len(doc_id_list) > 1:
+            doc_id_list.sort()
+
+        return doc_id_list
 
     def build(self):
         """
@@ -66,9 +72,8 @@ class InvertedIndex:
             self.__add_document(movie['id'], input_text)
 
         # Build Complete , now Save
+        # can also perform explicitly: class.build().save() or class.build(); class.save()
         self.save()
-
-            
 
     def save(self):
         """
@@ -76,17 +81,28 @@ class InvertedIndex:
         saves them 
             @ cache/index.pk1
             @ cache/docmap.pk1
-        """
-        file_path = Path(__file__).resolve().parents[2]/'cache'
-        
+        """   
         # exist_ok=True (if dir already exist, don't raise error)
         # parents=True (create any necessary parent directories that don't exist)
-        file_path.mkdir(exist_ok=True)
+        file_path.mkdir(exist_ok=True, parents=False)
 
-        with open(file_path/'index.pk1', 'wb') as index_file:
+        with open(file_path/'index.pkl', 'wb') as index_file:
             pickle.dump(self.index, index_file)
 
-        with open(file_path/'docmap.pk1', 'wb') as docmap_file:
+        with open(file_path/'docmap.pkl', 'wb') as docmap_file:
             pickle.dump(self.docmap, docmap_file)
 
-#example = InvertedIndex().build()
+    def load(self, filename):
+        """
+        Docstring for load
+
+            loads() the cached file for search using 
+            pickle.load() in read mode
+        
+        :param filename: name of the cached file 
+        """
+        try:
+            with open(file_path/filename, 'rb') as f:
+                return pickle.load(f)
+        except FileNotFoundError:
+            raise Exception(f"Cached file: {filename} don't exist")

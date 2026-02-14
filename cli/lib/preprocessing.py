@@ -71,14 +71,15 @@ class Preprocessing:
         punctuated_text = self.remove_punctuation()
         tokens = punctuated_text.split()
 
+        tokens = list(set(tokens))  # remove duplicates
+
         return tokens
     
     def stop_words(self):
         tokens = self.tokenization()
         stop_words = []     # words which don't have much sematic meaning
 
-        #filepath = f'{Path(__file__).resolve().parent.parent}/data/stopwords.txt'   # construct file path
-        filepath = Path(__file__).resolve().parent.parent.parent/'data'/'stopwords.txt'    # for multi-OS support
+        filepath = Path(__file__).resolve().parents[2]/'data'/'stopwords.txt'    # for multi-OS support
         #print(filepath)
         try:
             with open(filepath) as f:
@@ -140,7 +141,3 @@ class GetData:
     def get_file_data_txt(self):
         """ uses .read() method to read the file """
         pass
-
-
-#file = GetData('movies.json').get_file()
-#print(type(file))      
