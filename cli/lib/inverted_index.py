@@ -8,8 +8,12 @@ file_path = Path(__file__).resolve().parents[2]/'cache'
 
 class InvertedIndex:
     def __init__(self):
-        self.index = {} # mapping tokens (strings) to sets of document IDs (integers)
-        self.docmap = {} # mapping document IDs to their full document objects
+        # mapping tokens (strings) to sets of document IDs (integers)
+        self.index = {}
+        # mapping document IDs to their full document objects
+        self.docmap = {}
+        # mapping document IDs to Counter object i.e {doc_id: {token: frequency, ...},.... }
+        self.term_frequencies = {}
 
         movies_data = GetData('movies.json').get_file_data_json()
         self.movies = movies_data['movies']     # is a list[dict{'id':, 'title':, 'description':}]
@@ -26,17 +30,19 @@ class InvertedIndex:
         :param text: contain movie['title'] and movie['description'] as
                      a single string
         """
-        tokens = Preprocessing(text).stop_words()   # removed non-relevant words
+        tokens = Preprocessing(text).stemming()   # removed non-relevant words
 
         for token in tokens:
-           
-            # appends a new document list to an existing index entry for a given token, 
-            # initializing it with an empty list if it doesn't exist.
-            self.index.setdefault(token, []).extend(self.get_document(token))
-            
+            # add list elements in index
+            # if key=token is initilized, if not available
+            self.index.setdefault(token,[]).extend(self.get_document(token))
+
             if doc_id not in self.index[token]:
-                 # insert doc_id at right index
+                 # insert doc_id at right index (correct position acc. to ascending order)
                 bisect.insort(self.index[token], doc_id)
+
+            # count frequency of term in a given document object
+            self.term_frequencies[doc_id][token] = self.term_frequencies.setdefault(doc_id, {}).setdefault(token, 0) + 1
 
     def get_document(self, term) -> list[int]:
         """
@@ -47,13 +53,24 @@ class InvertedIndex:
         """
         # get document id's for a given token
         doc_id_list  = [ movie['id'] for movie in self.movies if term.lower() in movie['title'].lower()]
-        doc_id_list = list(set(doc_id_list))
 
         # sort doc_id in ascending order 
-        if len(doc_id_list) > 1:
-            doc_id_list.sort()
+        # It will be a sorted list as parsed data is sorted (no need to sort)
 
         return doc_id_list
+    
+    def get_tf(self, doc_id, term):
+        term = Preprocessing(term).stop_words()
+
+        if len(term) > 1:
+            raise Exception("InvertedIndex.get_tf(): More than 1 token")
+        else:
+            term = term.pop()
+        
+        term_frequency_cache = self.load('term_frequencies.pkl')
+
+        # if term exist returns counter else 0
+        return term_frequency_cache[doc_id][term]
 
     def build(self):
         """
@@ -71,16 +88,15 @@ class InvertedIndex:
             # create the index dictionary
             self.__add_document(movie['id'], input_text)
 
-        # Build Complete , now Save
-        # can also perform explicitly: class.build().save() or class.build(); class.save()
-        self.save()
+        # Build Complete
 
     def save(self):
         """
-        Save index, docmap dictionaries &
+        Save index, docmap, term_frequency dictionaries &
         saves them 
-            @ cache/index.pk1
-            @ cache/docmap.pk1
+            @ cache/index.pkl
+            @ cache/docmap.pkl
+            @ cache/term_frequencies.pkl
         """   
         # exist_ok=True (if dir already exist, don't raise error)
         # parents=True (create any necessary parent directories that don't exist)
@@ -92,6 +108,9 @@ class InvertedIndex:
         with open(file_path/'docmap.pkl', 'wb') as docmap_file:
             pickle.dump(self.docmap, docmap_file)
 
+        with open(file_path/'term_frequencies.pkl', 'wb') as tf_file:
+            pickle.dump(self.term_frequencies, tf_file)
+
     def load(self, filename):
         """
         Docstring for load
@@ -99,8 +118,9 @@ class InvertedIndex:
             loads() the cached file for search using 
             pickle.load() in read mode
         
-        :param filename: name of the cached file 
+        :param filenames: names of the cached file 
         """
+        
         try:
             with open(file_path/filename, 'rb') as f:
                 return pickle.load(f)

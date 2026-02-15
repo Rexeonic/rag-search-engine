@@ -29,26 +29,28 @@ def main() -> None:
             print(f"Searching for: {args.query}")
 
             # Loads the Cache file
+            #index_cache, docmap_cache, tf_cache = InvertedIndex().load('index.pkl','docmap.pkl', 'term_frequencies.pkl')
             index_cache = InvertedIndex().load('index.pkl')
             docmap_cache = InvertedIndex().load('docmap.pkl')
+            #tf_cache = InvertedIndex().load('term_frequencies.pkl')
 
             tokens = Preprocessing(args.query).stemming()   # query text is processed {refer cli/preprocessing.py}
             
             indexes = []    # contains index of movies, which matched the search
             for token in tokens:
                 try:
-                    indexes += index_cache[token]
+                    indexes.extend(index_cache[token])
                 except KeyError:
                     continue
 
             indexes = list(set(indexes))     # Remove the duplicates  
-            #indexes.sort()    # Sort the list
+            indexes.sort()    # Sort the list
 
             # Output to the User
             i = 1
             for index in indexes:
-                #if i > 5:
-                #    break
+                if i > 5:
+                   break
 
                 movie_object = docmap_cache[index]
                 print(f"{i}. {movie_object['title']}\n")
@@ -58,9 +60,12 @@ def main() -> None:
             inverted_index = InvertedIndex()
             
             inverted_index.build()  # builds the cache
+            inverted_index.save()   # saves the cache
 
         case "tf":
-            pass
+            frequency = InvertedIndex().get_tf(args.doc_id, args.term)
+
+            print(frequency)
         case _:
             parser.print_help()
 
