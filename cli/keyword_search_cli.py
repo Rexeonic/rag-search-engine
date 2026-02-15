@@ -32,10 +32,10 @@ def main() -> None:
             #index_cache, docmap_cache, tf_cache = InvertedIndex().load('index.pkl','docmap.pkl', 'term_frequencies.pkl')
             index_cache = InvertedIndex().load('index.pkl')
             docmap_cache = InvertedIndex().load('docmap.pkl')
-            #tf_cache = InvertedIndex().load('term_frequencies.pkl')
 
             tokens = Preprocessing(args.query).stemming()   # query text is processed {refer cli/preprocessing.py}
-            
+            tokens = list(set(tokens))  # removes duplicate tokens
+
             indexes = []    # contains index of movies, which matched the search
             for token in tokens:
                 try:
@@ -43,7 +43,7 @@ def main() -> None:
                 except KeyError:
                     continue
 
-            indexes = list(set(indexes))     # Remove the duplicates  
+            indexes = list(set(indexes))     # Remove duplicate indexes  
             indexes.sort()    # Sort the list
 
             # Output to the User

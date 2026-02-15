@@ -71,8 +71,6 @@ class Preprocessing:
         punctuated_text = self.remove_punctuation()
         tokens = punctuated_text.split()
 
-        tokens = list(set(tokens))  # remove duplicates
-
         return tokens
     
     def stop_words(self):

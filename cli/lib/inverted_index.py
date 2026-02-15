@@ -15,6 +15,7 @@ class InvertedIndex:
         # mapping document IDs to Counter object i.e {doc_id: {token: frequency, ...},.... }
         self.term_frequencies = {}
 
+        # Getting Data (later we'll use vector databases)
         movies_data = GetData('movies.json').get_file_data_json()
         self.movies = movies_data['movies']     # is a list[dict{'id':, 'title':, 'description':}]
 
@@ -35,10 +36,11 @@ class InvertedIndex:
         for token in tokens:
             # add list elements in index
             # if key=token is initilized, if not available
-            self.index.setdefault(token,[]).extend(self.get_document(token))
+            if token not in self.index: # so get_document() doesn't run multiple times on same tokens
+                self.index.setdefault(token,[]).extend(self.get_document(token))
 
             if doc_id not in self.index[token]:
-                 # insert doc_id at right index (correct position acc. to ascending order)
+                # insert doc_id at right index (correct position acc. to ascending order)
                 bisect.insort(self.index[token], doc_id)
 
             # count frequency of term in a given document object
@@ -60,17 +62,17 @@ class InvertedIndex:
         return doc_id_list
     
     def get_tf(self, doc_id, term):
-        term = Preprocessing(term).stop_words()
+        term = Preprocessing(term).stemming()
 
         if len(term) > 1:
             raise Exception("InvertedIndex.get_tf(): More than 1 token")
         else:
-            term = term.pop()
+            token = term.pop()
         
         term_frequency_cache = self.load('term_frequencies.pkl')
 
         # if term exist returns counter else 0
-        return term_frequency_cache[doc_id][term]
+        return term_frequency_cache[doc_id][token]
 
     def build(self):
         """
