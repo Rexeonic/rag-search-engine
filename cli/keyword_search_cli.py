@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from math import log
 
 from lib.preprocessing import Preprocessing
 from lib.inverted_index import InvertedIndex
@@ -20,6 +21,10 @@ def main() -> None:
     tf_parser = subparsers.add_parser("tf", help="List term frequency of a keyword in a given document")
     tf_parser.add_argument("doc_id", type=int, help="Id of the document to search")
     tf_parser.add_argument("term", type=str, help="Search the occurrence (freq.) of term in document object of 'doc_id'")
+
+    # idf (inverse document frequency) cmd parser
+    idf_parser = subparsers.add_parser("idf", help="Inverse Document Frequency: qualifies a term as rare, common, universal")
+    idf_parser.add_argument("term", type=str, help="for a given term, find in how many docs it occurs")
 
     args = parser.parse_args()
 
@@ -66,6 +71,22 @@ def main() -> None:
             frequency = InvertedIndex().get_tf(args.doc_id, args.term)
 
             print(frequency)
+
+        case "idf":
+            # user supplied term
+            term = Preprocessing(args.term).stemming().pop()  # bcs it returns as list (so, pop() is used)
+
+            index_cache = InvertedIndex().load('index.pkl')
+            docmap_cache = InvertedIndex().load('docmap.pkl')
+
+            total_doc = len(docmap_cache) 
+            term_match_doc_count = len(index_cache[term])
+
+            # +1 prevents division by zero when a term doesn't appear in any documents.
+            idf = log( (total_doc + 1) / (term_match_doc_count + 1) )
+            idf = round(idf, 2)
+            print(f"Inverse Document Frequency of {term}: {idf}")
+
         case _:
             parser.print_help()
 

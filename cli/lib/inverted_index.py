@@ -67,11 +67,14 @@ class InvertedIndex:
         if len(term) > 1:
             raise Exception("InvertedIndex.get_tf(): More than 1 token")
         else:
-            token = term.pop()
+            try:
+                token = term.pop()
+            except IndexError:  # if term is empty (cann't pop empty list)
+                return 0
         
         term_frequency_cache = self.load('term_frequencies.pkl')
 
-        # if term exist returns counter else 0
+        # if term exist returns counter
         return term_frequency_cache[doc_id][token]
 
     def build(self):
