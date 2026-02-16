@@ -26,6 +26,11 @@ def main() -> None:
     idf_parser = subparsers.add_parser("idf", help="Inverse Document Frequency: qualifies a term as rare, common, universal")
     idf_parser.add_argument("term", type=str, help="for a given term, find in how many docs it occurs")
 
+    # tfidf (TF-IDF) cmd parser
+    tf_parser = subparsers.add_parser("tfidf", help="List term frequency of a keyword in a given document")
+    tf_parser.add_argument("doc_id", type=int, help="Id of the document to search")
+    tf_parser.add_argument("term", type=str, help="Search the occurrence (freq.) of term in document object of 'doc_id'")
+
     args = parser.parse_args()
 
     match args.command:
@@ -73,20 +78,42 @@ def main() -> None:
             print(frequency)
 
         case "idf":
-            # user supplied term
-            term = Preprocessing(args.term).stemming().pop()  # bcs it returns as list (so, pop() is used)
-
             index_cache = InvertedIndex().load('index.pkl')
             docmap_cache = InvertedIndex().load('docmap.pkl')
 
             total_doc = len(docmap_cache) 
-            term_match_doc_count = len(index_cache[term])
+            try:
+                term_match_doc_count = len(index_cache[args.term])
+            except KeyError:
+                term = Preprocessing(args.term).stemming().pop()  # bcs it returns a list (so, pop() is used)
+                term_match_doc_count = len(index_cache[term])
 
             # +1 prevents division by zero when a term doesn't appear in any documents.
             idf = log( (total_doc + 1) / (term_match_doc_count + 1) )
-            idf = round(idf, 2)
-            print(f"Inverse Document Frequency of {term}: {idf}")
+            print(f"Inverse Document Frequency of {args.term}: {idf:.2f}")
 
+        case "tfidf":
+
+            index_cache = InvertedIndex().load('index.pkl')
+            docmap_cache = InvertedIndex().load('docmap.pkl')
+
+            # Finds Total Documents (for this prototype its 5000)
+            total_doc = len(docmap_cache) 
+            # Finds Total MATCHing Document COUNT
+            try:
+                term_match_doc_count = len(index_cache[args.term])
+            except KeyError:
+                term = Preprocessing(args.term).stemming().pop()  # bcs it returns a list (so, pop() is used)
+                term_match_doc_count = len(index_cache[term])
+
+            # Calculate tf & idf
+            idf = log( (total_doc + 1) / (term_match_doc_count + 1) )
+            tf = InvertedIndex().get_tf(args.doc_id, args.term)
+
+            tf_idf = tf * idf
+
+            print(f"TF-IDF score of '{args.term}' in document '{args.doc_id}': {tf_idf:.2f}")
+            
         case _:
             parser.print_help()
 

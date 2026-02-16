@@ -31,8 +31,8 @@ class InvertedIndex:
         :param text: contain movie['title'] and movie['description'] as
                      a single string
         """
-        tokens = Preprocessing(text).stemming()   # removed non-relevant words
-
+        #tokens = text.split()  # Use THIS: for cache that includes all words (even Low-Value tokens)
+        tokens = Preprocessing(text).stemming()   # (for only High-Value tokens) !!! Has its own downside !!!
         for token in tokens:
             # add list elements in index
             # if key=token is initilized, if not available
