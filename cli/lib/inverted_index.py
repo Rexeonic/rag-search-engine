@@ -1,4 +1,5 @@
 from pathlib import Path
+from math import log
 import pickle
 import bisect
 
@@ -76,6 +77,29 @@ class InvertedIndex:
 
         # if term exist returns counter
         return term_frequency_cache[doc_id][token]
+    
+    def get_idf(self, term):
+        index_cache = self.load('index.pkl')
+        docmap_cache = self.load('docmap.pkl')
+
+        # Finds Total Documents (for this prototype its 5000)
+        total_doc = len(docmap_cache) 
+        # Finds Total MATCHing Document COUNT
+        try:
+            term_match_doc_count = len(index_cache[term])
+        except KeyError:
+            term = Preprocessing(term).stemming().pop()  # bcs it returns a list (so, pop() is used)
+            term_match_doc_count = len(index_cache[term])
+
+        # IDF = log ( d / NF ) 
+        #       where, 
+        #           d -> total docs & 
+        #           NF -> no. of docs containing the term
+        # +1 prevents division by zero when a term doesn't appear in any documents.
+        idf = log( (total_doc + 1) / (term_match_doc_count + 1) )
+
+        return idf
+
 
     def build(self):
         """
