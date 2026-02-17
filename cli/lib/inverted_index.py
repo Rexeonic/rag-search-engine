@@ -78,27 +78,48 @@ class InvertedIndex:
         # if term exist returns counter
         return term_frequency_cache[doc_id][token]
     
+    def get_bm25_tf(self, doc_id, term, k1):
+        tf = self.get_tf(doc_id, term)
+
+        # Saturated tf score
+        bm25_tf = (tf * (k1 + 1)) / (tf + k1)
+
+        return bm25_tf
+    
     def get_idf(self, term):
-        index_cache = self.load('index.pkl')
-        docmap_cache = self.load('docmap.pkl')
 
-        # Finds Total Documents (for this prototype its 5000)
-        total_doc = len(docmap_cache) 
-        # Finds Total MATCHing Document COUNT
-        try:
-            term_match_doc_count = len(index_cache[term])
-        except KeyError:
-            term = Preprocessing(term).stemming().pop()  # bcs it returns a list (so, pop() is used)
-            term_match_doc_count = len(index_cache[term])
+        # Find total_doc, term_match_doc_count
+        total_doc, term_match_doc_count = GETQUANTITIES().cal_N_and_df(term)
 
-        # IDF = log ( d / NF ) 
+        # IDF = log ( N / df ) 
         #       where, 
-        #           d -> total docs & 
-        #           NF -> no. of docs containing the term
+        #           N -> total docs & 
+        #           df -> no. of docs containing the term
         # +1 prevents division by zero when a term doesn't appear in any documents.
         idf = log( (total_doc + 1) / (term_match_doc_count + 1) )
 
         return idf
+    
+    def get_bm25_idf(self, term) -> float:
+        """
+        Docstring for get_bm25_idf
+        
+        
+        :param term: term for which BM25 IDF score
+                     is to be found
+            Note -> should be a single token
+        """
+        # Find total_doc, term_match_doc_count
+        total_doc, term_match_doc_count = GETQUANTITIES().cal_N_and_df(term)
+
+        # IDF = log( (N - df + 0.5)/(df + 0.5) + 1) 
+        #       where, 
+        #           N -> total docs 
+        #           df -> no. of docs containing the term
+        # +1 prevents division by zero when a term doesn't appear in any documents.
+        bm25_idf = log( (total_doc - term_match_doc_count + 0.5) / (term_match_doc_count + 0.5) + 1 )
+
+        return bm25_idf
 
 
     def build(self):
@@ -149,9 +170,32 @@ class InvertedIndex:
         
         :param filenames: names of the cached file 
         """
-        
         try:
             with open(file_path/filename, 'rb') as f:
                 return pickle.load(f)
         except FileNotFoundError:
             raise Exception(f"Cached file: {filename} don't exist")
+        
+
+class GETQUANTITIES:
+    """
+    Docstring for GETQUANTITIES
+
+    Calculate quantities used in IDF formula
+    """
+    def __init__(self):
+        self.index_cache = InvertedIndex().load('index.pkl')
+        self.docmap_cache = InvertedIndex().load('docmap.pkl')
+
+    def cal_N_and_df(self, term):
+        """ Finds total_documents & term_match_doc_count """
+        # Finds Total Documents (for this prototype its 5000)
+        total_doc = len(self.docmap_cache) 
+        # Finds Total MATCHing Document COUNT
+        try:
+            term_match_doc_count = len(self.index_cache[term])
+        except KeyError:
+            term = Preprocessing(term).stemming().pop()  # bcs it returns a list (so, pop() is used)
+            term_match_doc_count = len(self.index_cache[term])
+
+        return total_doc, term_match_doc_count

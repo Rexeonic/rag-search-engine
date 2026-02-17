@@ -4,6 +4,7 @@ import argparse
 
 from lib.preprocessing import Preprocessing
 from lib.inverted_index import InvertedIndex
+from parameters import BM25_K1
 
 
 def main() -> None:
@@ -22,9 +23,19 @@ def main() -> None:
     tf_parser.add_argument("doc_id", type=int, help="Id of the document to search")
     tf_parser.add_argument("term", type=str, help="Search the occurrence (freq.) of term in document object of 'doc_id'")
 
+    # BM25 tf (term frequency) cmd parser
+    bm25_tf_parser = subparsers.add_parser("bm25tf", help="Get BM25 TF score for a given document ID and term")
+    bm25_tf_parser.add_argument("doc_id", type=int, help="Document ID")
+    bm25_tf_parser.add_argument("term", type=str, help="Term to get BM25 TF score for")
+    bm25_tf_parser.add_argument("k1", type=float, nargs='?', default=BM25_K1, help="Tunable BM25 K1 parameter")
+
     # idf (inverse document frequency) cmd parser
     idf_parser = subparsers.add_parser("idf", help="Inverse Document Frequency: qualifies a term as rare, common, universal")
-    idf_parser.add_argument("term", type=str, help="for a given term, find in how many docs it occurs")
+    idf_parser.add_argument("term", type=str, help="term for which IDF score is to be found")
+
+    # BM25 idf (inverse document frequency)cmd parser
+    bm25_idf_parser = subparsers.add_parser("bm25idf", help="Get BM25 IDF score for a given term")
+    bm25_idf_parser.add_argument("term", type=str, help="term for which BM25 IDF score is to be found")
 
     # tfidf (TF-IDF) cmd parser
     tf_parser = subparsers.add_parser("tfidf", help="List term frequency of a keyword in a given document")
@@ -74,19 +85,26 @@ def main() -> None:
 
         case "tf":
             frequency = InvertedIndex().get_tf(args.doc_id, args.term)
-
             print(frequency)
+
+        case "bm25tf":
+            saturated_bm25_tf = InvertedIndex().get_bm25_tf(args.doc_id, args.term, args.k1)
+            print(f"{saturated_bm25_tf:.2f}")
 
         case "idf":
             idf = InvertedIndex().get_idf(args.term)
            
             print(f"Inverse Document Frequency of {args.term}: {idf:.2f}")
 
-        case "tfidf":
+        case "bm25idf":
+            bm25_idf = InvertedIndex().get_bm25_idf(args.term)
 
+            print(f"BM25 IDF score of {args.term}: {bm25_idf:.2f}")
+
+        case "tfidf":
             # Calculate tf & idf
             tf = InvertedIndex().get_tf(args.doc_id, args.term)
-            idf = InvertedIndex().get_idf(args.term)
+            idf = InvertedIndex().get_bm25_idf(args.term)
             
             # Cal TF-IDF
             tf_idf = tf * idf
