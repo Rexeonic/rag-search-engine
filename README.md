@@ -106,16 +106,57 @@ It is not as robust as today's need that's why we implement
 
 Okapi BM25
 ----------
-BM25 uses a more stable IDF formula:
+ a) BM25 uses a more stable IDF formula:
+    -----------------------------------
 
-    IDF = log((N - df + 0.5) / (df + 0.5) + 1)
+        IDF = log((N - df + 0.5) / (df + 0.5) + 1)
 
-    where,
-        N = total number of documents in the collection
-        df = document frequency (how many documents contain this term)
-        0.5 -> Additive/Laplace Smooting
-        +1 -> so IDF is always positive (handles some edge cases)
+        where,
+            N = total number of documents in the collection
+            df = document frequency (how many documents contain this term)
+            0.5 -> Additive/Laplace Smooting
+            +1 -> so IDF is always positive (handles some edge cases)
 
+ b) Term Frequency Problem
+    ----------------------
+    If a word appears 100 times, it gets 10x more weight than a word that appears 10 times.
+    This creates problems
+
+    Query: "bear hunting"
+
+        Document A: "bear bear bear bear" → 4 matches
+        Document B: "bear hunting guide for beginners" → 2 matches
+
+    With basic TF, Document A gets a much higher score despite being clearly less useful!
+
+        Solution
+        --------
+            BM25 uses diminishing returns – after a certain point,
+            additional occurrences matter less.
+
+            tf_component = (tf * (k1 + 1)) / (tf + k1)
+
+        +---------------+----------+-----------------+
+        |Term Frequency |Basic TF  | BM25 TF (k1=1.5)|
+        +---------------+----------+-----------------+
+        |     1         |     1    |       1.0       |
+        |     2         |     2    |       1.4       |
+        |     5         |     5    |       1.9       |
+        |     10        |     10   |       2.2       |
+        |     20        |     20   |       2.3       |
+        +---------------+----------+-----------------+
+
+ c) Document length Normalization
+    -----------------------------
+    ensuring longer documents don't get unfair advantages over shorter, more focused ones. 
+    Longer documents contain more words, which can artificially boost their scores
+
+    # Length normalization factor
+    length_norm = 1 - b + b * (doc_length / avg_doc_length)
+
+    # Apply to term frequency
+    tf_component = (tf * (k1 + 1)) / (tf + k1 * length_norm)
+    
 Advantages:
 a) Better IDF calculation
 b) Term frequency saturation
