@@ -12,7 +12,7 @@ wheels/
 # Data
 data/
 ruff/
-cache/old_cache
+cache/
 
 # My Personal
 cli/docs.md

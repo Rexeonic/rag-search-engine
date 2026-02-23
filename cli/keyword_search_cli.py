@@ -126,8 +126,11 @@ def main() -> None:
 
             docmap_cache = InvertedIndex().load('docmap.pkl')
             
+            i = 1
             for id, score in results.items():
                 print(f"{i}. ({id}) {docmap_cache[id]['title']} - Score: {score}")
+                i += 1
+
         case _:
             parser.print_help()
 
