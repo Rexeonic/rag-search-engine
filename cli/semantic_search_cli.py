@@ -2,18 +2,33 @@
 
 import argparse
 
-from lib.semantic_search import verify_model
+from lib.semantic_search import (verify_model, 
+                                 embed_text,
+                                 verify_embeddings)
+
 def main():
     parser = argparse.ArgumentParser(description="Semantic Search CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    verify_parser = subparsers.add_parser("verify", help="Verifies all-MiniLM-L6-v2 is properly loaded")
+    verify_parser = subparsers.add_parser("verify", help="verifies all-MiniLM-L6-v2 is properly loaded")
+
+    embed_text_parser = subparsers.add_parser("embed_text", help="generate embeddings for a given text")
+    embed_text_parser.add_argument("text", type=str, help="text from which embedding will be generated")
+
+    verify_embeddings_parser = subparsers.add_parser("verify_embeddings", 
+                                                     help="verifies embeddings are present, if no, creates them")
     
     args = parser.parse_args()
 
     match args.command:
         case "verify":
             verify_model()
+
+        case "embed_text":
+            embed_text(args.text)
+
+        case "verify_embeddings":
+            verify_embeddings()
         case _:
             parser.print_help()
 

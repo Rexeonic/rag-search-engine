@@ -9,8 +9,6 @@ from parameters import BM25_K1, BM25_B
 
 file_path = Path(__file__).resolve().parents[2]/'cache'
 
-# Getting Data (later we'll use vector databases)
-movies_data = GetData('movies.json').get_file_data_json()
 
 class InvertedIndex:
     def __init__(self):
@@ -23,6 +21,8 @@ class InvertedIndex:
         # maps document IDs to its Size (no. of tokens) i.e {doc_id: size,...}
         self.doc_lengths = {}
 
+        # Getting Data (later we'll use vector databases)
+        movies_data = GetData('movies.json').get_file_data_json()
         self.movies = movies_data['movies']     # is a list[dict{'id':, 'title':, 'description':}]
 
     def __add_document(self, doc_id, text):
