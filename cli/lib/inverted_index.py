@@ -137,7 +137,7 @@ class InvertedIndex:
         Because of inefficiency of calling bm25 method
         they are not called.
 
-        running time is reduced by 78 %
+        running time is reduced by 78 % (now ~55.5 mins search time)
         """
 
         query = Preprocessing(query).stemming()
@@ -155,12 +155,11 @@ class InvertedIndex:
             doc_length = doc_length_cache[doc_id]
 
             for token in query:
-
                 # gets the document that contains the token
                 term_match_doc_count = self._cal_df(token)
+
                 # cal. BM25 IDF
                 bm25_idf = log( (no_of_docs - term_match_doc_count + 0.5) / (term_match_doc_count + 0.5) + 1 )
-                
                 # cal. BM25 TF
                 tf = tf_cache.get(doc_id, {}).get(token, 0) # get term_frequency
 
@@ -177,10 +176,9 @@ class InvertedIndex:
                 total_bm25_score += bm25_idf * bm25_tf
 
             scores[doc_id] = round(total_bm25_score, 2)
-            print(scores)
+            
+        scores = dict(sorted(scores.items(), key=itemgetter(1), reverse=True))
     
-        scores.sort(key=itemgetter(1), reverse=True)
-  
         # results dictionary
         res = {}
         i = 1

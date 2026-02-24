@@ -13,8 +13,8 @@ rag-search-engine.cli.keyword-search-cli is the main entrypoint
         3) argparse (library)
     
 
-Working
--------
+Keyword Search
+--------------
 
     1. Text Preprocessing
        
@@ -161,3 +161,103 @@ Advantages:
 a) Better IDF calculation
 b) Term frequency saturation
 c) Document length normalization
+
+
+Semantic Search
+---------------
+
+    cli.lib.semantic_search.py [where logic is implemented]
+
+fundamental tool that will power our semantic search is "embeddings" 
+(numerical representations of text that capture the meaning of words)
+
+Semantic embeddings are usually in over 300 dimensions.
+
+    "embedding", when we take a piece of text and convert it into a vector. 
+    eg.
+
+        "King" -> [3.5, 2.5]
+        "Queen" -> [3.0, 2.0]
+        "Human" -> [3.0, -3.0]
+
+    distance b/w the vectors represents how similar the meanings of the words are. 
+
+The process of converting text into vectors requires a lot of data and computation
+it's a machine learning "training" process
+
+    --------------------------------------------------------------
+    | Used a pre-trained embedding model called all-MiniLM-L6-v2 |
+    --------------------------------------------------------------
+
+
+    General Purpose Models
+
+        Use case: Broad semantic understanding across domains
+        Examples: all-MiniLM-L6-v2, all-mpnet-base-v2
+        Best for: Movie search, general document retrieval
+
+    Domain-Specific Models
+
+        Use case: Specialized knowledge (medical, legal, scientific)
+        Examples: allenai-specter, microsoft/BiomedNLP-PubMedBERT
+        Best for: Technical documentation, research papers
+
+    Multilingual Models
+
+        Use case: Data in multiple languages in the same search system
+        Examples: paraphrase-multilingual-MiniLM-L12-v2
+        Best for: International movie databases
+
+Dot Product
+-----------
+
+dot product measures how much two vectors "point in the same direction.
+
+a) more similar the vectors -> higher dot product
+b) point in opposite directions -> dot product will be negative.
+
+    problem
+    1. affected by vector magnitude, whereas
+    direction is the important part for semantic similarity
+
+    Note:
+    Vectors has, 
+    1. magnitude -> represents 'confidence' or 'strength'
+    2. direction -> semantic similarity
+
+Cosine Similarity   (all-MiniLM-L6-v2 uses cosine similarity)
+-----------------
+    ![alt text](resources/cosine_similarity.png)
+
+     measures the cosine of the angle between two vectors, 
+     meaning it only cares about their direction.
+
+range -> -1.0 to 1.0
+
+    1.0 - vectors point in exactly the same
+          direction (perfectly similar)
+
+    0.0 - vectors are perpendicular
+          (not similar)
+
+    -1.0 - vectors point in opp. directions
+           (perfectly dissimilar)
+     
+
+Formula
+   ------------------------------------------------------------------------- 
+   | cosine_similarity = dot_product(A, B) / (magnitude(A) × magnitude(B)) |
+   ------------------------------------------------------------------------- 
+
+Mechanics,
+    Calculate similarity: The dot product measures how much vectors align
+    Remove length bias: Dividing by magnitudes removes the effect of vector size
+
+
+****Note****
+    Use same similarity as to which the embedding model was trained on.
+
+
+    all-MiniLM-L6-v2 was trained on cosine similarity i.e it is used
+
+    

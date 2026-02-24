@@ -105,3 +105,43 @@ Universal term (appears in all docs):
     ----------
     Best matches have both high TF and high IDF
     ------------
+
+
+Vector Addition
+---------------
+
+Vector addition is useful for combining/mixing concepts.
+example, "I want a result that's like this and like that."
+
+With vector addition, we just add the corresponding elements of two vectors together.
+
+    [0.5, -0.2,  0.8]
+    +
+    [0.1,  0.9, -0.3]
+    =
+    [0.6,  0.7,  0.5]
+
+"The Great Bear" embeds to [0.5, -0.2, 0.8] (Animation, Adventure, Family)
+                            +
+"Back Country" which embeds to [0.1, 0.9, -0.3] (Horror, Thriller, Survival)
+                            =
+[0.6, 0.7, 0.5], which represents a mix of those genres (Family, Adventure, Horror).
+
+Vector Subtraction
+------------------
+
+Vector subtraction is useful for removing concepts.
+example, "I want a result that's like this but not that."
+
+    [0.5, -0.2,  0.8]
+    -
+    [0.1,  0.9, -0.3]
+    =
+    [0.4, -1.1,  1.1]
+
+"The Great Bear" embeds to [0.5, -0.2, 0.8] (Animation, Adventure, Family)
+                                -
+"The Revenant," which embeds to [0.1, 0.9, -0.3] (Horror, Thriller, Survival)
+                                =
+[0.4, -1.1, 1.1], representing Family Adventure but not Horror or Survival.
+
