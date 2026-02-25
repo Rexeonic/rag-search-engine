@@ -1,5 +1,6 @@
 # Standard Libraries
 from pathlib import Path
+from operator import itemgetter
 
 # External Dependencies
 import numpy as np
@@ -8,99 +9,7 @@ from sentence_transformers import SentenceTransformer
 # Internal Dependencies
 from lib.preprocessing import GetData
 
-file_path = Path(__file__).resolve().parents[2]/'cache'
-
-class SemanticSearch:
-
-    def __init__(self):
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
-
-        self.embeddings = None
-        self.documents = None
-        self.document_map = {}
-
-    def generate_embedding(self, text):
-        if text == None or len(text.strip()) == 0:
-            raise ValueError("Text is either all spaces or empty")
-
-        embedding = self.model.encode(list(text))   # expects a list
-
-        return embedding[0]
-    
-    def build_embeddings(self, documents):
-        # documents is a list[dict], where dict is a movie object
-        self.documents = documents  
-
-        movies_string = []
-        for index, doc in enumerate(self.documents):
-            self.document_map[index] = doc
-
-            movie_string = f"{doc['title']}:{doc['description']}"
-            movies_string.append(movie_string)
-
-        self.embeddings = self.model.encode(movies_string, show_progress_bar=True)
-        
-        # save array to binary file
-        np.save(file_path/'movie_embeddings.npy', self.embeddings)
-
-        return self.embeddings
-    
-    def load_or_create_embeddings(self, documents):
-        self.documents = documents
-
-        for index, doc in enumerate(self.documents):
-            self.document_map[index] = doc
-
-        try:
-        
-            self.embeddings = np.load(file_path/'movie_embeddings.npy', 'r')
-
-            if len(self.embeddings) == len(self.documents):
-                return self.embeddings
-                
-        except  FileNotFoundError:
-            self.embeddings = self.build_embeddings(documents)
-            return self.embeddings
-    
-    def cosine_similarity(self, vec1, vec2):
-
-        if len(vec1) != len(vec2):
-            raise ValueError('vectors must be of equal size')    
-
-        # cosine_similarity = dot_product(A, B) / (magnitude(A)*magnitude(B))
-        magnitude_a = self._euclidean_norm(vec1)
-        magnitude_b = self._euclidean_norm(vec2)
-
-        if magnitude_a == 0 or magnitude_b == 0:
-            return 0
-        
-        cosine_similarity = self._dot_product(vec1, vec2) / (magnitude_a * magnitude_b)
-
-        return cosine_similarity
-    
-    def _euclidean_norm(self, vec):
-        """
-        euclidean_norm just adds the squares of all the numbers in a vector, 
-        then takes the square root of that sum. 
-        
-        This should be reminiscent of the Pythagorean theorem.
-        """
-        sum_of_sqaures = 0.0
-        for i in range(0, len(vec)):
-            sum_of_sqaures += vec[i]**2
-            
-        euclidean_norm = sum_of_sqaures**0.5
-        return euclidean_norm
-
-    def _dot_product(self, vec1, vec2):
-        if len(vec1) != len(vec2):
-            raise ValueError("Vector size must be same")
-    
-        dot = 0.0
-        for i in range(0, len(vec1)):
-            dot += vec1[i] * vec2[i]
-
-        return dot
+embeddings_file_path = Path(__file__).resolve().parents[2]/'cache'/'movie_embeddings.npy'
 
 def verify_model():
 
@@ -131,3 +40,131 @@ def verify_embeddings():
 
     print(f"Number of docs: {len(documents)}")
     print(f"Embeddings shape: {embeddings.shape[0]} vectors in {embeddings.shape[1]} dimensions")
+
+    
+def embed_query_text(query):
+ 
+    sem_search = SemanticSearch()
+    embedding = sem_search.generate_embedding(query.strip())
+
+    print(f"Query: {query}")
+    print(f"First 5 dimensions: {embedding[:5]}")
+    print(f"Shape: {embedding.shape}")
+
+
+
+def search(query, limit):
+
+    movies_data = GetData('movies.json').get_file_data_json()
+    documents = movies_data['movies']
+
+    sem_search = SemanticSearch()
+    sem_search.load_or_create_embeddings(documents)
+    result = sem_search.search(query, limit)
+
+    return result
+
+class SemanticSearch:
+
+    def __init__(self):
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+
+        self.embeddings = None
+        self.documents = None
+        self.document_map = {}
+
+
+    def generate_embedding(self, text):
+        
+        if not text or not text.strip():
+            raise ValueError("Text is either all spaces or empty")
+        
+        text = text.strip()
+
+        return self.model.encode([text])[0]
+    
+    def build_embeddings(self, documents):
+        # documents is a list[dict], where dict is a movie object
+        self.documents = documents
+        self.document_map = {}
+
+        movie_strings = []
+        for doc in self.documents:
+            self.document_map[doc['id']] = doc
+
+            movie_strings.append(f"{doc['title']}:{doc['description']}")
+
+        self.embeddings = self.model.encode(movie_strings, show_progress_bar=True)
+        
+        # save array to binary file
+        np.save(embeddings_file_path, self.embeddings)
+
+        return self.embeddings
+    
+    def load_or_create_embeddings(self, documents):
+        self.documents = documents
+
+        for doc in self.documents:
+            self.document_map[doc['id']] = doc
+
+        if embeddings_file_path.exists():
+            self.embeddings = np.load(embeddings_file_path, 'r')
+
+            if len(self.embeddings) == len(self.documents):
+                return self.embeddings
+                
+        else:
+            self.embeddings = self.build_embeddings(documents)
+            return self.embeddings
+    
+    def search(self, query, limit):
+        if self.embeddings.all() == None:
+            raise ValueError("No embeddings loaded. Call `load_or_create_embeddings` first.")
+
+        query_embedding = self.generate_embedding(query)
+
+        similarity_score = []
+        for doc, doc_embedding in zip(self.documents , self.embeddings):
+            _similarity = self._cosine_similarity(doc_embedding, query_embedding)
+            
+            similarity_score.append( (_similarity, doc) )
+
+        similarity_score.sort(key=itemgetter(0), reverse=True)
+        #print(sem_search)
+        res = []
+        for i, value in enumerate(similarity_score):
+            if i >= limit:
+                break
+
+            item = {'score': value[0], 
+                    'title': value[1]['title'],
+                    'description': value[1]['description'] }
+            res.append(item)
+
+        return res
+
+    def _cosine_similarity(self, vec1, vec2):
+        dot_product = np.dot(vec1, vec2)
+        norm1 = np.linalg.norm(vec1)
+        norm2 = np.linalg.norm(vec2)
+
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+
+        return dot_product / (norm1 * norm2)
+
+    def _euclidean_norm(self, vec):
+        """
+        euclidean_norm just adds the squares of all the numbers in a vector, 
+        then takes the square root of that sum. 
+        
+        This should be reminiscent of the Pythagorean theorem.
+        """
+        sum_of_sqaures = 0.0
+        for i in range(0, len(vec)):
+            sum_of_sqaures += vec[i]**2
+            
+        euclidean_norm = sum_of_sqaures**0.5
+        return euclidean_norm
+
+
