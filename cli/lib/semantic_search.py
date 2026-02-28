@@ -1,6 +1,8 @@
 # Standard Libraries
 from pathlib import Path
 from operator import itemgetter
+import re
+import json
 
 # External Dependencies
 import numpy as np
@@ -9,7 +11,8 @@ from sentence_transformers import SentenceTransformer
 # Internal Dependencies
 from lib.preprocessing import GetData
 
-embeddings_file_path = Path(__file__).resolve().parents[2]/'cache'/'movie_embeddings.npy'
+file_path = Path(__file__).resolve().parents[2]/'cache'
+embeddings_file_path = file_path/'movie_embeddings.npy'
 
 def verify_model():
 
@@ -64,10 +67,36 @@ def search(query, limit):
 
     return result
 
+def semantic_chunk(text, chunk_size, overlap):
+    """
+    Implements Semantic Chunk bases on grouping
+    text into sentences.
+
+    :param text:    text to be chunked
+    :param chunk_size: size of each chunk
+    :param overlap: overlapping between two chunks
+    """
+    if overlap >= chunk_size:
+        raise ValueError("Overlap cann't be bigger than chunk size")
+            
+    # split text based on sentences
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+
+    res = []
+    for i in range(0, len(sentences), chunk_size-overlap):
+        chunk = sentences[i:i+chunk_size]
+                
+        if len(chunk) <= overlap:
+            break
+                
+        res.append(" ".join(chunk))
+
+    return res
+
 class SemanticSearch:
 
-    def __init__(self):
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+    def __init__(self, model_name='all-MiniLM-L6-v2'):
+        self.model = SentenceTransformer(model_name)
 
         self.embeddings = None
         self.documents = None
@@ -168,3 +197,63 @@ class SemanticSearch:
         return euclidean_norm
 
 
+class ChunkedSemanticSearch(SemanticSearch):
+
+    def __init__(self, model_name = "all-MiniLM-L6-v2") -> None:
+        super().__init__(model_name)
+        self.chunk_embeddings = None
+        self.chunk_metadata = None
+
+    def build_chunk_embeddings(self, documents):
+        # populate self.documents & self.docmap
+        self.documents = documents
+        self.document_map = { doc['id']: doc for doc in self.documents }
+        
+        all_chunks = []
+        chunk_metadata = [] # is a list[dict]
+        for doc in self.documents:
+            if doc['description'] is None:
+                continue
+
+            chunks = semantic_chunk(doc['description'], chunk_size=4, overlap=1)
+            all_chunks.extend(chunks)
+
+            for chunk in chunks:
+               #d = {'movie_idx': doc['id'], 'chunk_idx': all_chunks.index[chunk], 'total_chunks': len(chunks)}
+               chunk_metadata.append(   {
+                                        'movie_idx': doc['id'],
+                                        'chunk_idx': all_chunks.index(chunk),
+                                        'total_chunks': len(chunks)
+                                        }
+                                    )
+
+        self.chunk_embeddings = self.model.encode(all_chunks)
+        self.chunk_metadata = chunk_metadata
+
+        np.save(file_path/'chunk_embeddings.npy', self.chunk_embeddings)
+        with open(file_path/'chunk_metadata.json', 'w') as f:
+            json.dump({"chunks": chunk_metadata, "total_chunks": len(all_chunks)}, f, indent=2)
+
+        return self.chunk_embeddings
+    
+    def load_or_create_chunk_embeddings(self, documents: list[dict]) -> np.ndarray:
+        # populate self.documents & self.docmap
+        self.documents = documents
+        self.document_map = { doc['id']: doc for doc in self.documents}
+    
+        # File path variables
+        file_chunk_embeddings = file_path/'chunk_embeddings.npy'
+        file_chunk_metadata = file_path/'chunk_metadata.json'
+        
+        if file_chunk_embeddings.exists() and file_chunk_metadata.exists():
+            self.chunk_embeddings = np.load(file_chunk_embeddings, 'r')
+
+            with open(file_chunk_metadata, 'r') as f:
+                self.chunk_metadata = json.load(f)
+
+            return self.chunk_embeddings
+        
+        else:
+            # self.embeddings & self.chunk_metadata will be populated
+            # by the function itself
+            return self.build_chunk_embeddings(documents)

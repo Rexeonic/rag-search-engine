@@ -145,3 +145,41 @@ example, "I want a result that's like this but not that."
                                 =
 [0.4, -1.1, 1.1], representing Family Adventure but not Horror or Survival.
 
+
+Locality-Sensitive Hashing
+--------------------------
+ pre-group similar vectors into "buckets" using a special hash function. 
+
+    It speeds up searches but can miss some
+    similar vectors ( i.e `lower recall`)
+
+will use if computation speed is a priority
+over perfect accuracy.
+
+Vector Database
+----------------
+is designed specifically for storing and searching high-dimensional vectors efficiently. They offer:
+
+•Fast similarity search: Sub-linear time complexity using indexing
+•Persistent storage: Embeddings saved to disk
+•Distributed architecture: Handle more data than a single machine can store in RAM
+•Concurrent access: Multiple users can search simultaneously
+
+   +---------------------------------------------------------------------------------------------------+ 
+   |    Traditional Database 	            |                  Vector Database                         |
+   +---------------------------------------------------------------------------------------------------+ 
+   | Data: Structured (rows/columns) 	    |     Data: High-dimensional vectors                       | 
+   | Queries: Exact matches (WHERE clauses) |	Queries: Similarity search (nearest neighbors)         | 
+   | Use Case: Transactional data 	        |    Use Case: ML embeddings, semantic search              | 
+   +---------------------------------------------------------------------------------------------------+ 
+
+Vector databases also use specialized indexing techniques to speed up similarity searches, such as:
+
+•HNSW: Hierarchical navigable small world
+•IVF: Inverted File Flat Vector
+•LSH: Locality-sensitive hashing
+
+
+PGVector -> open source (for PostgreSQL)
+sqlite-vec -> open source (for SQLite)
+

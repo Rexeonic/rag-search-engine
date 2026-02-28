@@ -1,18 +1,37 @@
 Overview
+--------
     rag-search-engine is implemented as a collection of cmd line
     scripts that performs various search operations on a local
     dataset of movies (currently)
 
+    Index:
+        <ul>
+            <li>Architecture</li>
+            <ol>
+                <li> Entrypoint </li>
+                <li> Keyword Search </li>
+                <li> Okapi BM25 </li>
+                <li> Semantic Search </li>
+            </ol>
+        </ul>
+
 Entrypoint
 ----------
-rag-search-engine.cli.keyword-search-cli is the main entrypoint
+cli.keyword_search_cli.py is one entrypoint
 
     Dependencies :
         1) cli.lib.preprocessing (local)
         2) cli.lib.inverted_index (local)
         3) argparse (library)
     
+cli.semantic_search_cli.py is other entrypoint (for semantic search)
 
+    Dependencies :
+        1) cli.lib.semantic_search  (local)
+                |
+                +--> SentenceTransformer (imports `all-MiniLM-L6-v2` model)
+                +--> Numpy
+                +--> from lib.preprocessing GetData class
 Keyword Search
 --------------
 
@@ -208,57 +227,57 @@ it's a machine learning "training" process
         Examples: paraphrase-multilingual-MiniLM-L12-v2
         Best for: International movie databases
 
-Dot Product
------------
+    Dot Product
+    -----------
 
-dot product measures how much two vectors "point in the same direction.
+    dot product measures how much two vectors "point in the same direction.
 
-a) more similar the vectors -> higher dot product
-b) point in opposite directions -> dot product will be negative.
+    a) more similar the vectors -> higher dot product
+    b) point in opposite directions -> dot product will be negative.
 
-    problem
-    1. affected by vector magnitude, whereas
-    direction is the important part for semantic similarity
+        problem
+        1. affected by vector magnitude, whereas
+        direction is the important part for semantic similarity
 
-    Note:
-    Vectors has, 
-    1. magnitude -> represents 'confidence' or 'strength'
-    2. direction -> semantic similarity
+        Note:
+        Vectors has, 
+        1. magnitude -> represents 'confidence' or 'strength'
+        2. direction -> semantic similarity
 
-Cosine Similarity   (all-MiniLM-L6-v2 uses cosine similarity)
------------------
-    ![alt text](resources/cosine_similarity.png)
+    Cosine Similarity   (all-MiniLM-L6-v2 uses cosine similarity)
+    -----------------
+        ![alt text](resources/cosine_similarity.png)
 
-     measures the cosine of the angle between two vectors, 
-     meaning it only cares about their direction.
+        measures the cosine of the angle between two vectors, 
+        meaning it only cares about their direction.
 
-range -> -1.0 to 1.0
+    range -> -1.0 to 1.0
 
-    1.0 - vectors point in exactly the same
-          direction (perfectly similar)
+        1.0 - vectors point in exactly the same
+            direction (perfectly similar)
 
-    0.0 - vectors are perpendicular
-          (not similar)
+        0.0 - vectors are perpendicular
+            (not similar)
 
-    -1.0 - vectors point in opp. directions
-           (perfectly dissimilar)
-     
+        -1.0 - vectors point in opp. directions
+            (perfectly dissimilar)
+        
 
-Formula
-   ------------------------------------------------------------------------- 
-   | cosine_similarity = dot_product(A, B) / (magnitude(A) × magnitude(B)) |
-   ------------------------------------------------------------------------- 
+    Formula
+    ------------------------------------------------------------------------- 
+    | cosine_similarity = dot_product(A, B) / (magnitude(A) × magnitude(B)) |
+    ------------------------------------------------------------------------- 
 
-Mechanics,
-    Calculate similarity: The dot product measures how much vectors align
-    Remove length bias: Dividing by magnitudes removes the effect of vector size
-
-
-****Note****
-    Use same similarity as to which the embedding model was trained on.
+    Mechanics,
+        Calculate similarity: The dot product measures how much vectors align
+        Remove length bias: Dividing by magnitudes removes the effect of vector size
 
 
-    all-MiniLM-L6-v2 was trained on cosine similarity i.e it is used
+    ****Note****
+        Use same similarity as to which the embedding model was trained on.
+
+
+        all-MiniLM-L6-v2 was trained on cosine similarity i.e it is used
 
 Preprocessing for Embeddings
 ----------------------------
@@ -272,40 +291,25 @@ Preprocessing for Embeddings
     Keep same model for both data (i.e documents) and 
     queries. (as diff. model learns different mathematical space)
 
-Locality-Sensitive Hashing
---------------------------
- pre-group similar vectors into "buckets" using a special hash function. 
+Chunking
+--------
 
-    It speeds up searches but can miss some
-    similar vectors ( i.e `lower recall`)
-
-will use if computation speed is a priority
-over perfect accuracy.
-
-Vector Database
-----------------
-is designed specifically for storing and searching high-dimensional vectors efficiently. They offer:
-
-•Fast similarity search: Sub-linear time complexity using indexing
-•Persistent storage: Embeddings saved to disk
-•Distributed architecture: Handle more data than a single machine can store in RAM
-•Concurrent access: Multiple users can search simultaneously
-
-   +---------------------------------------------------------------------------------------------------+ 
-   |    Traditional Database 	            |                  Vector Database                         |
-   +---------------------------------------------------------------------------------------------------+ 
-   | Data: Structured (rows/columns) 	    |     Data: High-dimensional vectors                       | 
-   | Queries: Exact matches (WHERE clauses) |	Queries: Similarity search (nearest neighbors)         | 
-   | Use Case: Transactional data 	        |    Use Case: ML embeddings, semantic search              | 
-   +---------------------------------------------------------------------------------------------------+ 
-
-Vector databases also use specialized indexing techniques to speed up similarity searches, such as:
-
-•HNSW: Hierarchical navigable small world
-•IVF: Inverted File Flat Vector
-•LSH: Locality-sensitive hashing
+overlap -> create chunks that share words to 
+           preserve context across boundries.
+           
+(about 20% overlap works for most use cases, `but test on dataset`)
+eg: 
+In the climatic scene, the bear attack was
+bear attack was terrifying. The stunning and 
+The stunning and innovative special effects.
 
 
-PGVector -> open source (for PostgreSQL)
-sqlite-vec -> open source (for SQLite)
+    Semantic Chunking
+    -----------------
+    <b>Semantic chunking</b> respects natural language structure
+    like sentences and paragraphs. Each chunk contains <i>complete
+    thought</i> i.e split at natural breaks like sentences or 
+    paragraphs.
 
+
+    `can still use overlap with semantic chunking.`
