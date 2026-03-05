@@ -3,6 +3,7 @@ from pathlib import Path
 from operator import itemgetter
 import re
 import json
+from collections import defaultdict
 
 # External Dependencies
 import numpy as np
@@ -10,6 +11,7 @@ from sentence_transformers import SentenceTransformer
 
 # Internal Dependencies
 from lib.preprocessing import GetData
+from parameters import SCORE_PRECISION
 
 file_path = Path(__file__).resolve().parents[2]/'cache'
 embeddings_file_path = file_path/'movie_embeddings.npy'
@@ -44,9 +46,8 @@ def verify_embeddings():
     print(f"Number of docs: {len(documents)}")
     print(f"Embeddings shape: {embeddings.shape[0]} vectors in {embeddings.shape[1]} dimensions")
 
-    
 def embed_query_text(query):
- 
+
     sem_search = SemanticSearch()
     embedding = sem_search.generate_embedding(query.strip())
 
@@ -78,17 +79,29 @@ def semantic_chunk(text, chunk_size, overlap):
     """
     if overlap >= chunk_size:
         raise ValueError("Overlap cann't be bigger than chunk size")
-            
+
+    text = text.strip()
+
+    if not text:
+        return []
     # split text based on sentences
     sentences = re.split(r"(?<=[.!?])\s+", text)
 
+    # If there's only 1 sentence & doesn't end with 
+    # a punctuation mark like ., !, or ?
+    # Treat the whole text as one
+    if len(sentences) == 1:
+        if sentences[0][-1] != '.' and sentences[0][-1] != '?' and sentences[0][-1] != '!':
+            sentences = [text]
+
     res = []
     for i in range(0, len(sentences), chunk_size-overlap):
-        chunk = sentences[i:i+chunk_size]
-                
+        #chunk = list(map(str.strip, sentences[i:i+chunk_size]))
+        chunk = [ s.strip() for s in sentences[i:i+chunk_size] if s.strip() != ""]
+
         if len(chunk) <= overlap:
             break
-                
+
         res.append(" ".join(chunk))
 
     return res
@@ -104,14 +117,14 @@ class SemanticSearch:
 
 
     def generate_embedding(self, text):
-        
+
         if not text or not text.strip():
             raise ValueError("Text is either all spaces or empty")
-        
+
         text = text.strip()
 
         return self.model.encode([text])[0]
-    
+
     def build_embeddings(self, documents):
         # documents is a list[dict], where dict is a movie object
         self.documents = documents
@@ -124,12 +137,12 @@ class SemanticSearch:
             movie_strings.append(f"{doc['title']}:{doc['description']}")
 
         self.embeddings = self.model.encode(movie_strings, show_progress_bar=True)
-        
+
         # save array to binary file
         np.save(embeddings_file_path, self.embeddings)
 
         return self.embeddings
-    
+
     def load_or_create_embeddings(self, documents):
         self.documents = documents
 
@@ -141,11 +154,11 @@ class SemanticSearch:
 
             if len(self.embeddings) == len(self.documents):
                 return self.embeddings
-                
+
         else:
             self.embeddings = self.build_embeddings(documents)
             return self.embeddings
-    
+
     def search(self, query, limit):
         if self.embeddings.all() == None:
             raise ValueError("No embeddings loaded. Call `load_or_create_embeddings` first.")
@@ -155,7 +168,7 @@ class SemanticSearch:
         similarity_score = []
         for doc, doc_embedding in zip(self.documents , self.embeddings):
             _similarity = self._cosine_similarity(doc_embedding, query_embedding)
-            
+
             similarity_score.append( (_similarity, doc) )
 
         similarity_score.sort(key=itemgetter(0), reverse=True)
@@ -165,7 +178,7 @@ class SemanticSearch:
             if i >= limit:
                 break
 
-            item = {'score': value[0], 
+            item = {'score': value[0],
                     'title': value[1]['title'],
                     'description': value[1]['description'] }
             res.append(item)
@@ -181,21 +194,6 @@ class SemanticSearch:
             return 0.0
 
         return dot_product / (norm1 * norm2)
-
-    def _euclidean_norm(self, vec):
-        """
-        euclidean_norm just adds the squares of all the numbers in a vector, 
-        then takes the square root of that sum. 
-        
-        This should be reminiscent of the Pythagorean theorem.
-        """
-        sum_of_sqaures = 0.0
-        for i in range(0, len(vec)):
-            sum_of_sqaures += vec[i]**2
-            
-        euclidean_norm = sum_of_sqaures**0.5
-        return euclidean_norm
-
 
 class ChunkedSemanticSearch(SemanticSearch):
 
@@ -222,7 +220,7 @@ class ChunkedSemanticSearch(SemanticSearch):
                #d = {'movie_idx': doc['id'], 'chunk_idx': all_chunks.index[chunk], 'total_chunks': len(chunks)}
                chunk_metadata.append(   {
                                         'movie_idx': doc['id'],
-                                        'chunk_idx': all_chunks.index(chunk),
+                                        'chunk_idx': chunks.index(chunk),
                                         'total_chunks': len(chunks)
                                         }
                                     )
@@ -257,3 +255,41 @@ class ChunkedSemanticSearch(SemanticSearch):
             # self.embeddings & self.chunk_metadata will be populated
             # by the function itself
             return self.build_chunk_embeddings(documents)
+
+    def search_chunks(self, query: str, limit: int = 10):
+        query_embedding = self.generate_embedding(query)
+
+        chunk_score = []
+        movie_score = defaultdict(int)
+        for i, chunk in enumerate(self.chunk_embeddings):
+            score = self._cosine_similarity(chunk, query_embedding)
+
+            metadata = self.chunk_metadata['chunks'][i]
+            cidx, midx =  metadata['chunk_idx'], metadata['movie_idx']
+
+            chunk_score.append({
+                'chunk_idx': cidx,
+                'movie_idx': midx,
+                'score': score})
+            
+            movie_score[midx] = max(movie_score[midx], score)
+        
+        # Sort the Movies (based on score) in Descending order.
+        movie_score_ranked = sorted(movie_score.items(), key=itemgetter(1), reverse=True)
+        #print(movie_score)
+        
+        res = []
+        for doc_id, score in movie_score_ranked[:limit]:
+            document = self.document_map[doc_id]
+            metadata = {}
+
+            res.append({
+                    "id": doc_id,
+                    "title": document['title'],
+                    "document": document['description'][:100],
+                    "score": round(score, SCORE_PRECISION),
+                    "metadata": metadata or {}
+                })
+
+            
+        return res

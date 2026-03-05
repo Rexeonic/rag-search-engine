@@ -29,7 +29,7 @@ def main():
 
     search_parser = subparsers.add_parser("search", help="semantic search for relevant results")
     search_parser.add_argument("query", type=str, help="user query on which search is performed")
-    search_parser.add_argument("--limit", type=int, nargs='?', default=5, help="user query on which search is performed")
+    search_parser.add_argument("--limit", type=int, nargs='?', default=5, help="Number of results to be returned")
     
     chunk_parser = subparsers.add_parser("chunk", help="split long text into smaller pieces for embedding")
     chunk_parser.add_argument("text", type=str, help="text to chunk")
@@ -42,6 +42,10 @@ def main():
     semantic_chunk_parser.add_argument("--overlap", type=int, nargs='?', default=0, help="text to be chunked semantically")
 
     embed_chunks_parser = subparsers.add_parser("embed_chunks", help="generates embeddings for all the chunks")
+
+    search_chunked_parser = subparsers.add_parser("search_chunked", help="performs chunked semantic search for relevant results")
+    search_chunked_parser.add_argument("query", type=str, help="user query on which search is performed")
+    search_chunked_parser.add_argument("--limit", type=int, nargs='?', default=5, help="number of results to be given")
 
 
     args = parser.parse_args()
@@ -104,6 +108,19 @@ def main():
             embeddings = ChunkedSemanticSearch().load_or_create_chunk_embeddings(documents)
             print(f"Generated {len(embeddings)} chunked embeddings")
 
+        case "search_chunked":
+            chunk_search = ChunkedSemanticSearch()
+
+            movies_data = GetData(Path(__file__).resolve().parents[1]/'data'/'movies.json').get_file_data_json()
+            documents = movies_data['movies']
+            chunk_search.load_or_create_chunk_embeddings(documents)
+
+            results = chunk_search.search_chunks(args.query, args.limit)
+
+            for i, result in enumerate(results):
+                print(f"\n{i+1}. {result['title']} (score: {result['score']})")
+                print(f"   {result['document']}...")
+            
         case _:
             parser.print_help()
 

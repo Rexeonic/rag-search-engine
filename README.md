@@ -4,7 +4,7 @@ Overview
     scripts that performs various search operations on a local
     dataset of movies (currently)
 
-    Index:
+Index:
         <ul>
             <li>Architecture</li>
             <ol>
@@ -12,8 +12,11 @@ Overview
                 <li> Keyword Search </li>
                 <li> Okapi BM25 </li>
                 <li> Semantic Search </li>
+                <li> Chunked Semantic Search </li>
             </ol>
         </ul>
+
+<h2>Architecture</h2>
 
 Entrypoint
 ----------
@@ -35,68 +38,68 @@ cli.semantic_search_cli.py is other entrypoint (for semantic search)
 Keyword Search
 --------------
 
-    1. Text Preprocessing
+1. Text Preprocessing
        
-        cli.lib.preprocessing module contains Preprocessing class.
+    cli.lib.preprocessing module contains Preprocessing class.
 
-        which is a pipeline through which text comes out 
-        Stemmed ( in its real & base form )
+    which is a pipeline through which text comes out 
+    Stemmed ( in its real & base form )
 
     
-    2. TF-IDF ( Term Frequency-Inverse Document Frequency )
+2. TF-IDF ( Term Frequency-Inverse Document Frequency )
 
-        caches are built (serialized pickle files) 
-        @ rag-search-engine.cache 
+    caches are built (serialized pickle files) 
+    @ rag-search-engine.cache 
 
-        index.pkl  -> This contains index (document id's) of movie
-                      in which certain token is present.
+    index.pkl  -> This contains index (document id's) of movie
+                  in which certain token is present.
 
-            eg.  424 : We're Bear Bears     (document object)
-                 1136: Jumanji              (document object)
-                 326 : Jungle Bears         (document object)
+        eg.  424 : We're Bear Bears     (document object)
+             1136: Jumanji              (document object)
+             326 : Jungle Bears         (document object)
 
-                 then, index.pkl contains
+             then, index.pkl contains
 
-                 bear : [326,424]   ( token --> doc_id/index )
+             bear : [326,424]   ( token --> doc_id/index )
 
-        docmap.pkl  -> maps index (document id's) with actual 
-                       document object.
+    docmap.pkl  -> maps index (document id's) with actual 
+                   document object.
 
-            eg.  0 ---> None
-                 .
-                 .
-                326 --> Jungle Bears (movie object)
-                 .
-                424 --> We're Bear Bears
-                 .
-                1136 -> Jumanji      (movie object)
+        eg.  0 ---> None
+             .
+             .
+            326 --> Jungle Bears (movie object)
+             .
+            424 --> We're Bear Bears
+             .
+            1136 -> Jumanji      (movie object)
 
-        term_frequencies.pkl -> contains data of token frequency
-                                in a given document object
+    term_frequencies.pkl -> contains data of token frequency
+                            in a given document object
 
-            eg. 424 : We're Bear Bears (document object)
+        eg. 424 : We're Bear Bears (document object)
 
-                424 --> bear = 2 we = 1 ...
+            424 --> bear = 2 we = 1 ...
 
 Why did all this ?
 
-    Term Frequency score: tells how rare or common a token is in the
-    document object
+Term Frequency score: tells how rare or common a token is in the
+document object
 
-    Inverse Document Frequency score: tells how rare or common a token is
-    across all the document objects.
+Inverse Document Frequency score: tells how rare or common a token is
+across all the document objects.
 
-Practically, deduce
-    a) If a term is rare across all documents ( i.e IDF value is high),
-       and, it is common in a particular document (i.e TF value is high)
+Practically, deduce<br>
+    If a term is rare across all documents ( i.e IDF value is high),
+    and, it is common in a particular document (i.e TF value is high)
 
-       we've got the "Match".
+        we've got the "Match".
 
-    can determine for rest of the cases as well....
+can determine for rest of the cases as well....
 
 Mathematically, it can be implemented as product of TF & IDF
 
-    let user searches - "Future Cyborg"
+let user searches - "Future Cyborg"
 
     Document 1: A Traveller from future created by future John connor
 
@@ -185,7 +188,7 @@ c) Document length normalization
 Semantic Search
 ---------------
 
-    cli.lib.semantic_search.py [where logic is implemented]
+cli.lib.semantic_search.py [where logic is implemented]
 
 fundamental tool that will power our semantic search is "embeddings" 
 (numerical representations of text that capture the meaning of words)
@@ -244,14 +247,13 @@ it's a machine learning "training" process
         1. magnitude -> represents 'confidence' or 'strength'
         2. direction -> semantic similarity
 
-    Cosine Similarity   (all-MiniLM-L6-v2 uses cosine similarity)
-    -----------------
+Cosine Similarity   (all-MiniLM-L6-v2 uses cosine similarity)
         ![alt text](resources/cosine_similarity.png)
 
-        measures the cosine of the angle between two vectors, 
-        meaning it only cares about their direction.
+measures the cosine of the angle between two vectors, 
+meaning it only cares about their direction.
 
-    range -> -1.0 to 1.0
+range -> -1.0 to 1.0
 
         1.0 - vectors point in exactly the same
             direction (perfectly similar)
@@ -263,14 +265,14 @@ it's a machine learning "training" process
             (perfectly dissimilar)
         
 
-    Formula
+Formula
     ------------------------------------------------------------------------- 
     | cosine_similarity = dot_product(A, B) / (magnitude(A) × magnitude(B)) |
     ------------------------------------------------------------------------- 
 
-    Mechanics,
-        Calculate similarity: The dot product measures how much vectors align
-        Remove length bias: Dividing by magnitudes removes the effect of vector size
+Mechanics,
+    Calculate similarity: The dot product measures how much vectors align
+    Remove length bias: Dividing by magnitudes removes the effect of vector size
 
 
     ****Note****
@@ -281,15 +283,15 @@ it's a machine learning "training" process
 
 Preprocessing for Embeddings
 ----------------------------
-    It is already:
-        1. Case insensitive
-        2. Punctuation robust
-        3. Whitespace tolerant
+It is already:
+    1. Case insensitive
+    2. Punctuation robust
+    3. Whitespace tolerant
 
-    just basic cleaning like stripping whitespace is okay
+just basic cleaning like stripping whitespace is okay
 
-    Keep same model for both data (i.e documents) and 
-    queries. (as diff. model learns different mathematical space)
+Keep same model for both data (i.e documents) and 
+queries. (as diff. model learns different mathematical space)
 
 Chunking
 --------
@@ -304,12 +306,21 @@ bear attack was terrifying. The stunning and
 The stunning and innovative special effects.
 
 
-    Semantic Chunking
-    -----------------
-    <b>Semantic chunking</b> respects natural language structure
-    like sentences and paragraphs. Each chunk contains <i>complete
-    thought</i> i.e split at natural breaks like sentences or 
-    paragraphs.
+Semantic Chunking
+-----------------
+<b>Semantic chunking</b> respects natural language structure
+like sentences and paragraphs. Each chunk contains <i>complete
+thought</i> i.e split at natural breaks like sentences or paragraphs.
 
 
-    `can still use overlap with semantic chunking.`
+`can still use overlap with semantic chunking.`
+
+Chunked Semantic Search
+-----------------------
+
+1. Searching across chunks using cosine similarity with query embeddings
+2. Aggregating chunk scores to determine the most relevant documents
+3. Returning formatted results that map chunks back to their original movies
+
+    Note :-
+        By searching at the chunk level, we can find relevant information even when it's buried deep within a long document, like a book or technical manual.
