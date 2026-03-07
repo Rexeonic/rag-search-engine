@@ -91,9 +91,9 @@ def semantic_chunk(text, chunk_size, overlap):
     # a punctuation mark like ., !, or ?
     # Treat the whole text as one
     if len(sentences) == 1:
-        if sentences[0][-1] != '.' and sentences[0][-1] != '?' and sentences[0][-1] != '!':
+        if not sentences[0].endswith((".", "!", "?")):
             sentences = [text]
-
+    
     res = []
     for i in range(0, len(sentences), chunk_size-overlap):
         #chunk = list(map(str.strip, sentences[i:i+chunk_size]))

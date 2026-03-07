@@ -314,10 +314,38 @@ thought</i> i.e split at natural breaks like sentences or paragraphs.
 
 
 `can still use overlap with semantic chunking.`
+Semantic chunking with overlap works well for most situations
+(but there are much advanced techniques like 
+"Colbert", "Late Chunking")
 
+<dl>
+<dt><h4><u>Colbert (pronounced "cole-bear")<u></h4></dt>
+<dd>creates one embedding per word, with each word contextualized:
+
+    "Ted" (the main character)
+    "comedy" (the genre)
+    "John" (the human character)
+    "responsibilities" (related to growing up)
+
+It is an example of multi-vector retrieval (MVR), where a document or chunk is represented by multiple vectors (e.g., one per token) rather than a single vector per chunk
+
+    trade-off: ColBERT requires more storage and computational power
+</dd>
+<dt><h4><u>Late Chunking<u></h4></dt>
+<dd>creates an embedding for the entire document (or as much of it as possible), and then uses that embedding to create context-aware embeddings for each word
+
+So, each word contributes more meaningful information to the final embedding because its role in the text is already understood.
+</dd>
+</dl>
+
+<h5>When to use advanced Techniques?<h5>
+<ul type='disc'>
+    <li>need extremely precise search results.</li>
+    <li>Standard approaches aren't meeting accuracy requirements.</li>
+    <li>working with complex, nuanced text where context is critical.</li>
+    
 Chunked Semantic Search
 -----------------------
-
 1. Searching across chunks using cosine similarity with query embeddings
 2. Aggregating chunk scores to determine the most relevant documents
 3. Returning formatted results that map chunks back to their original movies
