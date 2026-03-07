@@ -225,7 +225,7 @@ class ChunkedSemanticSearch(SemanticSearch):
                                         }
                                     )
 
-        self.chunk_embeddings = self.model.encode(all_chunks)
+        self.chunk_embeddings = self.model.encode(all_chunks, show_progress_bar=True)
         self.chunk_metadata = chunk_metadata
 
         np.save(file_path/'chunk_embeddings.npy', self.chunk_embeddings)

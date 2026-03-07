@@ -247,7 +247,7 @@ it's a machine learning "training" process
         1. magnitude -> represents 'confidence' or 'strength'
         2. direction -> semantic similarity
 
-Cosine Similarity   (all-MiniLM-L6-v2 uses cosine similarity)
+<h5>Cosine Similarity</h5>   (all-MiniLM-L6-v2 uses cosine similarity)
         ![alt text](resources/cosine_similarity.png)
 
 measures the cosine of the angle between two vectors, 
@@ -343,7 +343,7 @@ So, each word contributes more meaningful information to the final embedding bec
     <li>need extremely precise search results.</li>
     <li>Standard approaches aren't meeting accuracy requirements.</li>
     <li>working with complex, nuanced text where context is critical.</li>
-    
+
 Chunked Semantic Search
 -----------------------
 1. Searching across chunks using cosine similarity with query embeddings
