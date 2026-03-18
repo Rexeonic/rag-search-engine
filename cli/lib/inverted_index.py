@@ -25,6 +25,8 @@ class InvertedIndex:
         movies_data = GetData('movies.json').get_file_data_json()
         self.movies = movies_data['movies']     # is a list[dict{'id':, 'title':, 'description':}]
 
+        self.index_path = file_path/'index.pkl'
+
     def __add_document(self, doc_id, text):
         """
         Docstring for __add_document: 
@@ -143,6 +145,7 @@ class InvertedIndex:
         query = Preprocessing(query).stemming()
 
         docmap_cache = self.load('docmap.pkl')
+        index_cache = self.load('index.pkl')
         tf_cache = self.load('term_frequencies.pkl')
         doc_length_cache = self.load('doc_lengths.pkl')
         no_of_docs = len(self.load('docmap.pkl'))
@@ -156,7 +159,8 @@ class InvertedIndex:
 
             for token in query:
                 # gets the document that contains the token
-                term_match_doc_count = self._cal_df(token)
+                #term_match_doc_count = self._cal_df(token) (high overhead)
+                term_match_doc_count = len(index_cache[token])
 
                 # cal. BM25 IDF
                 bm25_idf = log( (no_of_docs - term_match_doc_count + 0.5) / (term_match_doc_count + 0.5) + 1 )
