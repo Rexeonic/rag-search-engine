@@ -115,14 +115,14 @@ class HybridSearch:
             document = doc_map[doc_id]
 
             # Reciprocal Rank Fusion score
-            rrf_score = self.rrf_score(key_rank, k) + self.rrf_score(sem_rank, k)
+            ranking_score = self.rrf_score(key_rank, k) + self.rrf_score(sem_rank, k)
 
             rrf_res.append({'doc_id': doc_id,
                             'title': document['title'],
                             'document': document['description'][:100],
                             'keyword_rank': key_rank,
                             'semantic_rank': sem_rank,
-                            'rrf_score': rrf_score
+                            'rrf_score': ranking_score
                            })
             
         rrf_res.sort(key=itemgetter('rrf_score'), reverse=True)
