@@ -352,3 +352,59 @@ Chunked Semantic Search
 
     Note :-
         By searching at the chunk level, we can find relevant information even when it's buried deep within a long document, like a book or technical manual.
+
+Hybrid Search
+-------------
+
+1. Score Normalization
+    BM25: 0–100+    (keyword search)
+    Cosine: 0–1     (semantic search)
+
+    <u><b>Min-Max Normalization</b> (<i>Used</i>)</u>
+    Normalized score = (score - min_score) / (max_score - min_score)
+
+2. Weighted Combination
+    alpha ("α") -> dynamically controls the weighting between the two scores
+
+    α = 1.0: [████████████████████] 100% Keyword
+    α = 0.7: [██████████████------] 70% Keyword, 30% Semantic
+    α = 0.5: [██████████----------] 50/50 Split
+    α = 0.2: [████----------------] 20% Keyword, 80% Semantic
+    α = 0.0: [--------------------] 100% Semantic
+
+    
+    Hybrid Score =  (alpha * bm25_score) + (1 - alpha) * semantic_score
+
+3. Reciprocal Rank Fusion
+
+    rrf Score = 1 / (k + rank)
+
+        where,
+            k -> weights given to higher ranked vs. lower ranked results
+            on avg. 40 < k > 60 (but can be configured accordingly)
+
+        Lower 'k' value (eg. 20): more weight to top ranked results
+        Higher 'k' value (eg. 100): more influence to lower ranked results
+        
+    uses ranking instead of score (no need for normalization).
+
+    Working:
+
+    • BM25
+        Brother Bear (15.2) = 1 / (60 + 1) = 0.0164
+        Jungle Book (6.3)   = 1 / (60 + 2) = 0.0161
+        Paddington (8.7)    = 1 / (60 + 3) = 0.0159
+
+    • Semantic
+        Paddington (0.8)    = 1 / (60 + 1) = 0.0164
+        Brother Bear (0.7)  = 1 / (60 + 2) = 0.0161
+        We Bear Bears (0.6) = 1 / (60 + 3) = 0.0159
+
+    So,
+
+     Brother Bear = 0.0164 + 0.164 = 0.0325
+     Paddington = 0.0161 + 0.0161 = 0.0323
+     Jungle Book = 0.0161
+     We Bare Bears = 0.0159
+
+
