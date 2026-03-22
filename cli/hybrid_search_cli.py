@@ -1,16 +1,20 @@
+# Standard Libraries
 import argparse
+import json
+from operator import itemgetter
 from pathlib import Path
+import time
 
+# External Dependencies
+from lib.llm import LlmPrompt
+
+
+# Internal Dependencies
 from lib.preprocessing import GetData
 from lib.hybrid_search import (HybridSearch,
                                max_min_normalization)
 from parameters import (ALPHA,
                         RRF_K)
-
-# LLM Support
-import os
-from dotenv import load_dotenv
-from google import genai
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hybrid Search CLI")
@@ -29,6 +33,7 @@ def main() -> None:
     rrf_search_parser.add_argument("--k", type=int, default=RRF_K, help="weight given to higher-ranked results vs. lower-ranked results")
     rrf_search_parser.add_argument("--limit", type=int, nargs='?', default=5, help="limit of results (to be returned)")
     rrf_search_parser.add_argument("--enhance", type=str, nargs='?', choices=["spell", "rewrite", "expand"], help="Query enhancement method")
+    rrf_search_parser.add_argument("--rerank-method", type=str, nargs='?', choices=["individual","batch","cross_encoder"], help="Re-ranking for RRF search")
 
     args = parser.parse_args()
 
@@ -58,61 +63,15 @@ def main() -> None:
 
             # if enhance is provided (enhance user's query using LLM)
             if args.enhance:
-
                 if args.enhance.lower() == "spell":
-                    prompt = f"""Fix any spelling errors in the user-provided movie search query below.
-                        Correct only clear, high-confidence typos. Do not rewrite, add, remove, or reorder words.
-                        Preserve punctuation and capitalization unless a change is required for a typo fix.
-                        If there are no spelling errors, or if you're unsure, output the original query unchanged.
-                        Output only the final query text, nothing else.
-                        User query: "{args.query}"
-                        """
-                elif args.enhance.lower() == "rewrite":
-                    prompt = f"""Rewrite the user-provided movie search query below to be more specific and searchable.
-                            Consider:
-                            - Common movie knowledge (famous actors, popular films)
-                            - Genre conventions (horror = scary, animation = cartoon)
-                            - Keep the rewritten query concise (under 10 words)
-                            - It should be a Google-style search query, specific enough to yield relevant results
-                            - Don't use boolean logic
-
-                            Examples:
-                            - "that bear movie where leo gets attacked" -> "The Revenant Leonardo DiCaprio bear attack"
-                            - "movie about bear in london with marmalade" -> "Paddington London marmalade"
-                            - "scary movie with bear from few years ago" -> "bear horror movie 2015-2020"
-
-                            If you cannot improve the query, output the original unchanged.
-                            Output only the rewritten query text, nothing else.
-
-                            User query: "{args.query}"
-                        """
-                elif args.enhance.lower() == "expand":
-                    prompt = f"""Expand the user-provided movie search query below with related terms.
-
-                        Add synonyms and related concepts that might appear in movie descriptions.
-                        Keep expansions relevant and focused.
-                        Output only the additional terms; they will be appended to the original query.
-
-                        Examples:
-                        - "scary bear movie" -> "scary horror grizzly bear movie terrifying film"
-                        - "action movie with bear" -> "action thriller bear chase fight adventure"
-                        - "comedy with bear" -> "comedy funny bear humor lighthearted"
-
-                        User query: "{args.query}"
-                        """
+                    response = LlmPrompt('gemma-3-27b-it').spell(args.query)
                     
-                load_dotenv()
-                api_key = os.environ.get("GEMINI_API_KEY")
-                if not api_key:
-                    raise RuntimeError("GEMINI_API_KEY environment variable not set")
+                elif args.enhance.lower() == "rewrite":
+                    response = LlmPrompt('gemma-3-27b-it').rewrite(args.query)
 
-
-                client = genai.Client(api_key=api_key)
-                response = client.models.generate_content(
-                        model='gemma-3-27b-it', 
-                        contents=prompt
-                        )
-
+                elif args.enhance.lower() == "expand":
+                    response = LlmPrompt('gemma-3-27b-it').expand(args.query)
+             
                 print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{response.text}'\n")
                 
                 args.query = response.text
@@ -123,13 +82,93 @@ def main() -> None:
             movies_data = GetData(Path(__file__).resolve().parents[1]/'data'/'movies.json').get_file_data_json()
             documents = movies_data['movies']
 
-            results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit)
-        
-            for i, result in enumerate(results):
-                print(f"{i+1}. {result['title']}")
-                print(f"RRF Score: {result['rrf_score']}")
-                print(f"BM25 Rank: {result['keyword_rank']}, Semantic Rank: {result['semantic_rank']}")
-                print(f"{result['document']}...\n\n")
+            match args.rerank_method.lower():
+
+                case "individual":
+                    # Fetch results 5 times the limit
+                    results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
+
+                    llm = LlmPrompt('gemma-3-27b-it')
+                    rerank_res = []
+                    for result in results:
+
+                        result['rerank_score'] = llm.rerank_individual(args.query, result)
+
+                        # Can choose to remove this statement
+                        # just a design choice
+                        #   but then sort the result (list[dict]) and print to user
+                        rerank_res.append(result)
+
+                        time.sleep(1)  #to avoid hitting rate limits (try >=3)
+
+                    rerank_res.sort(key=itemgetter('rerank_score'), reverse=True)
+
+                    # Print the result
+                    print(f"Re-ranking top {args.limit} results using individual method...")
+                    print(f"Reciprocal Rank Fusion Results for '{args.query}' (K={args.k})")
+                    for i, result in enumerate(rerank_res[:args.limit]):
+
+                        print(f"{i+1}. {result['title']}")
+                        print(f"Re-rank Score: {result['rerank_score']:.1f}/10")
+                        print(f"RRF Score: {result['rrf_score']}")
+                        print(f"BM25 Rank: {result['keyword_rank']}, Semantic Rank: {result['semantic_rank']}")
+                        print(f"{result['document']}...\n\n")
+
+                case "batch":
+                    # Fetch results 5 times the limit
+                    results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
+                    
+                    # Returns a json list
+                    response = LlmPrompt('gemma-3-27b-it').rerank_batch(args.query, results)
+
+                    # Sort the results acc. to Re-Ranking
+                    rerank_res = []
+                    for i, id in enumerate(json.loads(response)):
+
+                        for res in results:
+                            if res['doc_id'] == id:
+                                doc = res
+                                break
+                        doc['rerank_score'] = i+1   # i+1 , as i starts with 0
+                        rerank_res.append(doc)
+
+                    # Print the result
+                    print(f"Re-ranking top {args.limit} results using batch method...")
+                    print(f"Reciprocal Rank Fusion Results for '{args.query}' (K={args.k})")
+                    for i, result in enumerate(rerank_res[:args.limit]):
+
+                        print(f"{i+1}. {result['title']}")
+                        print(f"Re-rank Score: {result['rerank_score']:.1f}/10")
+                        print(f"RRF Score: {result['rrf_score']}")
+                        print(f"BM25 Rank: {result['keyword_rank']}, Semantic Rank: {result['semantic_rank']}")
+                        print(f"{result['document']}...\n\n")
+
+                case "cross_encoder":
+                    # Fetch results 5 times the limit
+                    results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
+                    
+                    cross_encoder_res = LlmPrompt('gemma-3-27b-it').rerank_cross_encoder(args.query, results)
+                    cross_encoder_res.sort(key=itemgetter('cross_encoder_score'), reverse=True)
+                    
+                    # Print the result
+                    print(f"Re-ranking top {args.limit} results using cross_encoder method...")
+                    print(f"Reciprocal Rank Fusion Results for '{args.query}' (K={args.k})")
+                    for i, result in enumerate(cross_encoder_res[:args.limit]):
+
+                        print(f"{i+1}. {result['title']}")
+                        print(f"Cross Encoder Score: {result['cross_encoder_score']:.3f}")
+                        print(f"RRF Score: {result['rrf_score']}")
+                        print(f"BM25 Rank: {result['keyword_rank']}, Semantic Rank: {result['semantic_rank']}")
+                        print(f"{result['document']}...\n\n")
+
+                case _: # Hybrid Search (no Reciprocal Rank Fusion)
+                    results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit)
+                
+                    for i, result in enumerate(results):
+                        print(f"{i+1}. {result['title']}")
+                        print(f"RRF Score: {result['rrf_score']}")
+                        print(f"BM25 Rank: {result['keyword_rank']}, Semantic Rank: {result['semantic_rank']}")
+                        print(f"{result['document']}...\n\n")
         case _:
             parser.print_help()
 

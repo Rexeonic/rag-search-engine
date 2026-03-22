@@ -364,13 +364,13 @@ Hybrid Search
     Normalized score = (score - min_score) / (max_score - min_score)
 
 2. Weighted Combination
-    alpha ("α") -> dynamically controls the weighting between the two scores
+    alpha ("α") -> dynamically controls the weighting between the two scores<br>
 
-    α = 1.0: [████████████████████] 100% Keyword
-    α = 0.7: [██████████████------] 70% Keyword, 30% Semantic
-    α = 0.5: [██████████----------] 50/50 Split
-    α = 0.2: [████----------------] 20% Keyword, 80% Semantic
-    α = 0.0: [--------------------] 100% Semantic
+    α = 1.0: [████████████████████] 100% Keyword<br>
+    α = 0.7: [██████████████------] 70% Keyword, 30% Semantic<br>
+    α = 0.5: [██████████----------] 50/50 Split<br>
+    α = 0.2: [████----------------] 20% Keyword, 80% Semantic<br>
+    α = 0.0: [--------------------] 100% Semantic<br>
 
     
     Hybrid Score =  (alpha * bm25_score) + (1 - alpha) * semantic_score
@@ -390,21 +390,60 @@ Hybrid Search
 
     Working:
 
-    • BM25
-        Brother Bear (15.2) = 1 / (60 + 1) = 0.0164
-        Jungle Book (6.3)   = 1 / (60 + 2) = 0.0161
-        Paddington (8.7)    = 1 / (60 + 3) = 0.0159
+    • BM25<br><br>
+        Brother Bear (15.2) = 1 / (60 + 1) = 0.0164<br>
+        Jungle Book (6.3)   = 1 / (60 + 2) = 0.0161<br>
+        Paddington (8.7)    = 1 / (60 + 3) = 0.0159<br>
 
-    • Semantic
-        Paddington (0.8)    = 1 / (60 + 1) = 0.0164
-        Brother Bear (0.7)  = 1 / (60 + 2) = 0.0161
-        We Bear Bears (0.6) = 1 / (60 + 3) = 0.0159
+    • Semantic<br><br>
+        Paddington (0.8)    = 1 / (60 + 1) = 0.0164<br>
+        Brother Bear (0.7)  = 1 / (60 + 2) = 0.0161<br>
+        We Bear Bears (0.6) = 1 / (60 + 3) = 0.0159<br>
 
     So,
 
-     Brother Bear = 0.0164 + 0.164 = 0.0325
-     Paddington = 0.0161 + 0.0161 = 0.0323
-     Jungle Book = 0.0161
-     We Bare Bears = 0.0159
+     Brother Bear = 0.0164 + 0.164 = 0.0325<br>
+     Paddington = 0.0161 + 0.0161 = 0.0323<br>
+     Jungle Book = 0.0161<br>
+     We Bare Bears = 0.0159<br>
+
+Re-Ranking
+----------
+Search will find 100 movies, but users only look at top 5.
+
+Solution: Two-Stage Search
+1. Stage 1 -> Fast BM25/cosine similarity search finds the 
+              top ~25 documents
+
+2. Stage 2 -> Slow re-ranking finds the best 5 from 
+              those ~25 candidates
 
 
+It's accurate, but it's <b>much slower</b> - can't pre-cache 
+anything.
+
+    Used 2 types of Re-Ranking
+    1. Individual
+
+        calling the LLM individually for each document and scoring them.
+
+    2. Batch
+
+        calling the LLM individually for each one can be slow & expensive.
+
+        Quality of search suffers when we score each document independently
+        on an arbitrary scale. <b>By giving all the documents as a batch, 
+        they're always be compared against each other in the same context.</b>
+
+Semantic search embeddings were created with a bi-encoder (embeds document & query separately so we can use cosine similarity to score)
+
+Another Re-Ranking (based on cross-encoding i.e taking query & document embedding as a single pair)
+    3. Cross Encoding
+        used `from SentenceTransformers import CrossEncoder`
+
+        cross_encoder -> ms-marco-TinyBERT-L2-v2
+
+        catch subtle errors that bi-encoders miss
+
+        Cross Encoder are usually <u>a Regression model</u> which can be fine-tuned
+        to one's need.

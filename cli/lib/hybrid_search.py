@@ -3,6 +3,9 @@ import os
 from operator import itemgetter
 import pickle
 
+# External Dependencies
+from dotenv import load_dotenv
+from google import genai
 # Internal Dependencies
 from lib.inverted_index import (InvertedIndex,
                                 file_path)
