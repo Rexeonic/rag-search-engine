@@ -34,6 +34,7 @@ def main() -> None:
     rrf_search_parser.add_argument("--limit", type=int, nargs='?', default=5, help="limit of results (to be returned)")
     rrf_search_parser.add_argument("--enhance", type=str, nargs='?', choices=["spell", "rewrite", "expand"], help="Query enhancement method")
     rrf_search_parser.add_argument("--rerank-method", type=str, nargs='?', choices=["individual","batch","cross_encoder"], help="Re-ranking for RRF search")
+    rrf_search_parser.add_argument("--evaluate", action='store_true', help="Evaluate Search results using LLM")
 
     args = parser.parse_args()
 
@@ -82,31 +83,31 @@ def main() -> None:
             movies_data = GetData(Path(__file__).resolve().parents[1]/'data'/'movies.json').get_file_data_json()
             documents = movies_data['movies']
 
-            match args.rerank_method.lower():
+            match args.rerank_method:
 
                 case "individual":
-                    # Fetch results 5 times the limit
-                    results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
+                    # Fetch results 5 times the limit (ranked acc. to RRF)
+                    rrf_results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
 
                     llm = LlmPrompt('gemma-3-27b-it')
-                    rerank_res = []
-                    for result in results:
+                    results = []
+                    for res in rrf_results:
 
-                        result['rerank_score'] = llm.rerank_individual(args.query, result)
+                        res['rerank_score'] = llm.rerank_individual(args.query, res)
 
                         # Can choose to remove this statement
                         # just a design choice
-                        #   but then sort the result (list[dict]) and print to user
-                        rerank_res.append(result)
+                        #   but then sort the rrf_results (based on 'rerank_score' key) and print to user
+                        results.append(res)
 
                         time.sleep(1)  #to avoid hitting rate limits (try >=3)
 
-                    rerank_res.sort(key=itemgetter('rerank_score'), reverse=True)
+                    results.sort(key=itemgetter('rerank_score'), reverse=True)
 
                     # Print the result
                     print(f"Re-ranking top {args.limit} results using individual method...")
                     print(f"Reciprocal Rank Fusion Results for '{args.query}' (K={args.k})")
-                    for i, result in enumerate(rerank_res[:args.limit]):
+                    for i, result in enumerate(results[:args.limit]):
 
                         print(f"{i+1}. {result['title']}")
                         print(f"Re-rank Score: {result['rerank_score']:.1f}/10")
@@ -116,26 +117,26 @@ def main() -> None:
 
                 case "batch":
                     # Fetch results 5 times the limit
-                    results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
+                    rrf_results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
                     
                     # Returns a json list
-                    response = LlmPrompt('gemma-3-27b-it').rerank_batch(args.query, results)
+                    response = LlmPrompt('gemma-3-27b-it').rerank_batch(args.query, rrf_results)
 
                     # Sort the results acc. to Re-Ranking
-                    rerank_res = []
+                    results = []
                     for i, id in enumerate(json.loads(response)):
 
-                        for res in results:
+                        for res in rrf_results:
                             if res['doc_id'] == id:
                                 doc = res
                                 break
                         doc['rerank_score'] = i+1   # i+1 , as i starts with 0
-                        rerank_res.append(doc)
+                        results.append(doc)
 
                     # Print the result
                     print(f"Re-ranking top {args.limit} results using batch method...")
                     print(f"Reciprocal Rank Fusion Results for '{args.query}' (K={args.k})")
-                    for i, result in enumerate(rerank_res[:args.limit]):
+                    for i, result in enumerate(results[:args.limit]):
 
                         print(f"{i+1}. {result['title']}")
                         print(f"Re-rank Score: {result['rerank_score']:.1f}/10")
@@ -145,15 +146,16 @@ def main() -> None:
 
                 case "cross_encoder":
                     # Fetch results 5 times the limit
-                    results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
+                    rrf_results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
                     
-                    cross_encoder_res = LlmPrompt('gemma-3-27b-it').rerank_cross_encoder(args.query, results)
-                    cross_encoder_res.sort(key=itemgetter('cross_encoder_score'), reverse=True)
+                    # cross encoder re-ranked results
+                    results = LlmPrompt('gemma-3-27b-it').rerank_cross_encoder(args.query, rrf_results)
+                    results.sort(key=itemgetter('cross_encoder_score'), reverse=True)
                     
                     # Print the result
                     print(f"Re-ranking top {args.limit} results using cross_encoder method...")
                     print(f"Reciprocal Rank Fusion Results for '{args.query}' (K={args.k})")
-                    for i, result in enumerate(cross_encoder_res[:args.limit]):
+                    for i, result in enumerate(results[:args.limit]):
 
                         print(f"{i+1}. {result['title']}")
                         print(f"Cross Encoder Score: {result['cross_encoder_score']:.3f}")
@@ -169,6 +171,28 @@ def main() -> None:
                         print(f"RRF Score: {result['rrf_score']}")
                         print(f"BM25 Rank: {result['keyword_rank']}, Semantic Rank: {result['semantic_rank']}")
                         print(f"{result['document']}...\n\n")
+
+            if args.evaluate:
+                llm_evaluation = LlmPrompt('gemma-3-27b-it').evaluate_result(args.query, results)
+        
+                ####### For Storing LLM evaluation scores (use this piece of code) ######
+                #
+                #for idx, llm_score in enumerate(json.loads(llm_evaluation)):
+                #    results[idx]['evaluation_score'] = llm_score
+                #
+                #for i, result in enumerate(results):
+                #    print(f"{i+1}. {result['title']} {result['evaluation_score']}/3")
+                #########################################################################
+
+                #   Scale:
+                #   - 3: Highly relevant
+                #   - 2: Relevant
+                #   - 1: Marginally relevant
+                #   - 0: Not relevant
+                llm_scores = json.loads(llm_evaluation)
+                for i, result in enumerate(results):
+                    print(f"{i+1}. {result['title']}: {llm_scores[i]}/3")
+
         case _:
             parser.print_help()
 

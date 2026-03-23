@@ -136,7 +136,7 @@ Okapi BM25
         where,
             N = total number of documents in the collection
             df = document frequency (how many documents contain this term)
-            0.5 -> Additive/Laplace Smooting
+            0.5 -> Additive/Laplace Smoothing
             +1 -> so IDF is always positive (handles some edge cases)
 
  b) Term Frequency Problem
@@ -447,3 +447,59 @@ Another Re-Ranking (based on cross-encoding i.e taking query & document embeddin
 
         Cross Encoder are usually <u>a Regression model</u> which can be fine-tuned
         to one's need.
+
+Manual Evaluation
+-----------------
+The kind of ways the search can fail needs to be predicted and tackled accordingly.
+So, manually testing search is more important than it looks.
+
+In Manual Evaluation, will create `Golden Dataset` with the help of some industry 
+expert. 
+
+Think like:
+    What's here that shouldn't be?<br>
+    What's not here that should be?<br>
+    Would I click on these results?<br>
+
+    Many technically correct results are not ideal (as subconcious thinks these are wrong.)
+    These needs to be tackled as well.
+
+1. Did the result give you enough information to know whether the movies are relevant?<br>
+2. Would it be better to return fewer results because the last few usually aren't relevant?<br>
+3. Would it be better to return more results because there are more highly relevant options that just missed the cutoff?<br>
+
+
+For Manual Evaluation
+    run cli/evaluation_cli.py
+
+    e.g
+    uv run cli/evaluation_cli.py --limit Z
+
+        where,
+             Z belongs to set of integers
+
+LLM Evaluation
+--------------
+
+To let an LLM judge, you must:
+
+  •  Define clear evaluation criteria
+  •  Specify what makes a result relevant
+  •  Articulate your quality standards
+
+This clarity improves your entire evaluation system, even if you end up not using the LLM.
+
+Implementation Strategy
+
+1. Start with experts – Define clear evaluation criteria<br>
+2. Create detailed prompts – Include domain knowledge<br>
+3. Validate on samples – Check that the LLM agrees with experts<br>
+4. Use for scale – Let the LLM handle bulk evaluation<br>
+5. Spot-check results – Have experts review surprising scores<br>
+
+
+For LLM Evaluation
+    run hybrid_search_cli.py rrf_search with --evaluate option
+
+    eg. 
+        uv run cli/hybrid_search_cli.py rrf_search "query" --evaluation

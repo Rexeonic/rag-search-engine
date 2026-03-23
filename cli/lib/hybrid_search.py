@@ -92,7 +92,7 @@ class HybridSearch:
         # Normalized scores list returned
         return max_min_normalization(combined_scores)
 
-    def rrf_search(self, query, k, limit):
+    def rrf_search(self, query: str, k: int, limit: int) -> list[dict]:
         # dict{id: score}
         bm25_result = self._bm25_search(query, limit*500)
         # list[dict{id:, title:, document:, score:, metadata:}]

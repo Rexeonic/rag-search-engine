@@ -129,6 +129,38 @@ class LlmPrompt:
             movie['cross_encoder_score'] = scores[idx]
 
         return movie_list
+    
+    def evaluate_result(self, query, results):
+        """
+            chr(10) == \n
+        """
+        formatted_results = []
+        for result in results:
+            formatted_results.append(f"{result['title']}: {result['document']}")
+
+        prompt = f"""Rate how relevant each result is to this query on a 0-3 scale:
+
+                Query: "{query}"
+
+                Results:
+                {chr(10).join(formatted_results)}
+
+                Scale:
+                - 3: Highly relevant
+                - 2: Relevant
+                - 1: Marginally relevant
+                - 0: Not relevant
+
+                Do NOT give any numbers other than 0, 1, 2, or 3.
+
+                Return ONLY the scores in the same order you were given the documents. Return a valid JSON list, nothing else. For example:
+
+                [2, 0, 3, 2, 0, 1]"""
+        
+        llm_evaluation = self._response(prompt)
+
+        return llm_evaluation
+
     def _response(self, prompt):
         response = self.client.models.generate_content(
             model=self.model, 
