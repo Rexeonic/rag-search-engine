@@ -2,6 +2,8 @@ from lib.preprocessing import GetData
 from lib.hybrid_search import HybridSearch
 from parameters import RRF_K
 
+
+# auto/LLM evaluation implemented in llm.py LlmPrompt class
 class ManualEvaluation:
 
     def __init__(self):

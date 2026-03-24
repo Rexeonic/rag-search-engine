@@ -3,7 +3,7 @@ import argparse
 import json
 from operator import itemgetter
 from pathlib import Path
-import time
+import time, datetime
 
 # External Dependencies
 from lib.llm import LlmPrompt
@@ -12,7 +12,8 @@ from lib.llm import LlmPrompt
 # Internal Dependencies
 from lib.preprocessing import GetData
 from lib.hybrid_search import (HybridSearch,
-                               max_min_normalization)
+                               max_min_normalization,
+                               logger)
 from parameters import (ALPHA,
                         RRF_K)
 
@@ -35,6 +36,7 @@ def main() -> None:
     rrf_search_parser.add_argument("--enhance", type=str, nargs='?', choices=["spell", "rewrite", "expand"], help="Query enhancement method")
     rrf_search_parser.add_argument("--rerank-method", type=str, nargs='?', choices=["individual","batch","cross_encoder"], help="Re-ranking for RRF search")
     rrf_search_parser.add_argument("--evaluate", action='store_true', help="Evaluate Search results using LLM")
+    rrf_search_parser.add_argument("--debug", action='store_true', help="Log data for debugging")
 
     args = parser.parse_args()
 
@@ -60,22 +62,34 @@ def main() -> None:
 
         case "rrf_search":
 
-            ####################### LLMs before the search to help improve the QUERY ############################# 
+            ######################################################################################################
+            ######################################################################################################
+            if args.debug:                                                              #                        #
+                now = datetime.datetime.now()   # logging timestamp                     #  Generating logs @     #
+                                                                                        # rag-search-engine/logs #
+                logger( f"\n\n[ {now.strftime('%Y-%m-%d %I:%M:%S %p')} ]\n" )           #                        #
+                logger( f"\tQuery: {args.query}\n" )                                    #                        #
+            ######################################################################################################
 
+
+            ####################### LLMs before the search to help improve the QUERY ############################# 
             # if enhance is provided (enhance user's query using LLM)
             if args.enhance:
-                if args.enhance.lower() == "spell":
+                logger( f"\tEnhance option: {args.enhance} ✅SELECTED\n" )
+                if args.enhance == "spell":
                     response = LlmPrompt('gemma-3-27b-it').spell(args.query)
                     
-                elif args.enhance.lower() == "rewrite":
+                elif args.enhance == "rewrite":
                     response = LlmPrompt('gemma-3-27b-it').rewrite(args.query)
 
-                elif args.enhance.lower() == "expand":
+                elif args.enhance == "expand":
                     response = LlmPrompt('gemma-3-27b-it').expand(args.query)
              
-                print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{response.text}'\n")
+                print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{response}'\n")
                 
-                args.query = response.text
+                args.query = response
+
+                logger( f"\tEnhanced Query: {args.query}\n" )
             ################################# LLM Logic ends ##################################################
             ####################################################################################################
 
@@ -84,10 +98,15 @@ def main() -> None:
             documents = movies_data['movies']
 
             match args.rerank_method:
-
                 case "individual":
                     # Fetch results 5 times the limit (ranked acc. to RRF)
                     rrf_results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
+
+                    #########################################################################################
+                    if args.debug:                                                        #                 #
+                        logger(f"\tRe-Ranking method: {args.rerank_method} ✅SELECTED\n") # Statement:      #
+                        logger(f"\tRRF Result:\n{rrf_results}\n")                         #   Logs          #
+                    #########################################################################################
 
                     llm = LlmPrompt('gemma-3-27b-it')
                     results = []
@@ -119,6 +138,12 @@ def main() -> None:
                     # Fetch results 5 times the limit
                     rrf_results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
                     
+                    #########################################################################################
+                    if args.debug:                                                        #                 #
+                        logger(f"\tRe-Ranking method: {args.rerank_method} ✅SELECTED\n") # Statement:      #
+                        logger(f"\tRRF Result:\n{rrf_results}\n")                         #   Logs          #
+                    #########################################################################################
+
                     # Returns a json list
                     response = LlmPrompt('gemma-3-27b-it').rerank_batch(args.query, rrf_results)
 
@@ -148,10 +173,22 @@ def main() -> None:
                     # Fetch results 5 times the limit
                     rrf_results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
                     
+                    #########################################################################################
+                    if args.debug:                                                        #                 #
+                        logger(f"\tRe-Ranking method: {args.rerank_method} ✅SELECTED\n") # Statement:      #
+                        logger(f"\tRRF Result:\n{rrf_results}\n")                         #   Logs          #
+                    #########################################################################################
+
                     # cross encoder re-ranked results
                     results = LlmPrompt('gemma-3-27b-it').rerank_cross_encoder(args.query, rrf_results)
                     results.sort(key=itemgetter('cross_encoder_score'), reverse=True)
-                    
+
+                    ##########################################################################################
+                    if args.debug:                                                       #                  #      
+                        logger(f"Re-Ranking Successful ✅✅✅✅✅✅\n")                # Statement:       #
+                        logger(f"Results:\n{results}\n ✅✅✅✅✅✅\n")               #   Logs           #
+                    #####################################################################################
+
                     # Print the result
                     print(f"Re-ranking top {args.limit} results using cross_encoder method...")
                     print(f"Reciprocal Rank Fusion Results for '{args.query}' (K={args.k})")
@@ -165,7 +202,11 @@ def main() -> None:
 
                 case _: # Hybrid Search (no Reciprocal Rank Fusion)
                     results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit)
-                
+ 
+                    ##########################################################################################
+                    if args.debug:                                                       # Statement:       #
+                        logger(f"\tResults:\n{results}\n✅✅✅✅✅✅\n")                #   Logs           #
+                    ########################################################################################
                     for i, result in enumerate(results):
                         print(f"{i+1}. {result['title']}")
                         print(f"RRF Score: {result['rrf_score']}")
@@ -190,8 +231,17 @@ def main() -> None:
                 #   - 1: Marginally relevant
                 #   - 0: Not relevant
                 llm_scores = json.loads(llm_evaluation)
-                for i, result in enumerate(results):
-                    print(f"{i+1}. {result['title']}: {llm_scores[i]}/3")
+                ##########################################################################################
+                if args.debug:                                                      # Statement:        #
+                    logger(f"\tPerforming LLM Evaluation...\n")                    #    Logs           #
+                #######################################################################################
+                for i, score in enumerate(llm_scores):
+                    print(f"{i+1}. {results[i]['title']}: {score}/3")
+
+                    #########################################################################################
+                    if args.debug:                                                      # Statement:       #
+                        logger(f"\t\t{i+1}. {results[i]['title']}: {score}/3\n")       #   Logs           #
+                    ######################################################################################
 
         case _:
             parser.print_help()

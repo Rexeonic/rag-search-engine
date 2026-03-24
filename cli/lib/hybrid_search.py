@@ -1,16 +1,15 @@
 # Standard Libraries
 import os
 from operator import itemgetter
+from pathlib import Path
 import pickle
 
-# External Dependencies
-from dotenv import load_dotenv
-from google import genai
 # Internal Dependencies
 from lib.inverted_index import (InvertedIndex,
                                 file_path)
 from lib.semantic_search import ChunkedSemanticSearch
- 
+
+log_path = Path(__file__).resolve().parents[2]/"logs"
 
 class HybridSearch:
     def __init__(self, documents):
@@ -31,9 +30,9 @@ class HybridSearch:
     def hybrid_score(self, bm25_score, semantic_score, alpha=0.5):
         return (alpha * bm25_score) + ((1 - alpha) * semantic_score)
     
-    def rrf_score(self, rank, k=60):
+    def rrf_score(self, rank, k):
         if rank == 0:
-            return rank
+            return 1 / k
         
         return 1 / (k + rank)
 
@@ -98,8 +97,8 @@ class HybridSearch:
         # list[dict{id:, title:, document:, score:, metadata:}]
         css_result = self.semantic_search.search_chunks(query, limit*500)
     
-        bm25_rank = { doc_id: idx+1 for idx, doc_id in enumerate(bm25_result.keys()) }
-        css_rank = { res['id']: idx+1 for idx, res in enumerate(css_result) }
+        bm25_rank = { doc_id: rank+1 for rank, doc_id in enumerate(bm25_result.keys()) }
+        css_rank = { res['id']: rank+1 for rank, res in enumerate(css_result) }
 
         # Union (|) to include results from EITHER search type
         common_id = set(bm25_rank.keys()) | set(css_rank.keys())
@@ -114,7 +113,9 @@ class HybridSearch:
         for doc_id in common_id:
             # Default to 0.0 if the doc is missing from one result set
             key_rank = bm25_rank.get(doc_id, 0)
+            #print("rank: ", key_rank, "id: ", doc_id)
             sem_rank = css_rank.get(doc_id, 0)
+            #print("sem rank: ", key_rank, "id: ", doc_id)
             document = doc_map[doc_id]
 
             # Reciprocal Rank Fusion score
@@ -149,3 +150,13 @@ def max_min_normalization(scores):
             norm_score.append(norm_value)
 
         return norm_score
+
+
+def logger(info):
+    
+    # exist_ok=True (if dir already exist, don't raise error)
+    # parents=True (create any necessary parent directories that don't exist)
+    log_path.mkdir(exist_ok=True, parents=False)
+
+    with open(log_path/"rrf_search_log.txt", 'a') as f:
+        f.write(info)

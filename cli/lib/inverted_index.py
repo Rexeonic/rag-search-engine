@@ -139,7 +139,7 @@ class InvertedIndex:
         Because of inefficiency of calling bm25 method
         they are not called.
 
-        running time is reduced by 78 % (now ~55.5 mins search time)
+        running time is reduced by ~96 % (now ~1.51 mins search time)
         """
 
         query = Preprocessing(query).stemming()
@@ -173,9 +173,8 @@ class InvertedIndex:
                     # make bm25_tf = 0
                     continue    # as product of 0 is 0
                 else:
-                    length_norm = 1 - BM25_B + BM25_B * (doc_length / self._get_avg_doc_length())
+                    length_norm = 1 - BM25_B + BM25_B * (doc_length / self._get_avg_doc_length(doc_length_cache, no_of_docs))
                     bm25_tf = (tf * (BM25_K1 + 1)) / (tf + BM25_K1 * length_norm)
-                  
 
                 total_bm25_score += bm25_idf * bm25_tf
 
@@ -264,7 +263,7 @@ class InvertedIndex:
 
         return term_match_doc_count
         
-    def _get_avg_doc_length(self) -> float:
+    def _get_avg_doc_length(self, doc_lengths_cache, no_of_docs) -> float:
         """
         Docstring for _get_avg_doc_length
     
@@ -274,9 +273,6 @@ class InvertedIndex:
         :return avg_doc_length: avg. doc length of all 
                  document across dataset
         """
-        doc_lengths_cache = self.load('doc_lengths.pkl')
-        no_of_docs = len(self.load('docmap.pkl'))
-
         total_length_of_docs = 0
         for length in doc_lengths_cache.values():
             total_length_of_docs += length  # total size of all document included

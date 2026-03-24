@@ -12,7 +12,7 @@ wheels/
 # Data
 .env
 data/
-ruff/
+logs/
 cache/old_cache
 
 # My Personal
