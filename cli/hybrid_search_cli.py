@@ -201,13 +201,13 @@ def main() -> None:
                         print(f"{result['document']}...\n\n")
 
                 case _: # Hybrid Search (no Reciprocal Rank Fusion)
-                    results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit)
+                    results = HybridSearch(documents).rrf_search(args.query, args.k, args.limit*5)
  
                     ##########################################################################################
                     if args.debug:                                                       # Statement:       #
                         logger(f"\tResults:\n{results}\n✅✅✅✅✅✅\n")                #   Logs           #
                     ########################################################################################
-                    for i, result in enumerate(results):
+                    for i, result in enumerate(results[:args.limit]):
                         print(f"{i+1}. {result['title']}")
                         print(f"RRF Score: {result['rrf_score']}")
                         print(f"BM25 Rank: {result['keyword_rank']}, Semantic Rank: {result['semantic_rank']}")

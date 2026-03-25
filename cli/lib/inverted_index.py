@@ -4,6 +4,7 @@ from operator import itemgetter
 from collections import defaultdict, Counter
 import pickle
 
+# Internal Dependencies
 from lib.preprocessing import Preprocessing, GetData
 from parameters import BM25_K1, BM25_B
 
@@ -87,9 +88,12 @@ class InvertedIndex:
     
     def get_bm25_tf(self, doc_id, term, k1=BM25_K1, b=BM25_B):
         tf = self.get_tf(doc_id, term)
-        avg_doc_length = self._get_avg_doc_length()
 
-        doc_length = self.load('doc_lengths.pkl')[doc_id]
+        doc_length_cache = self.load('doc_lengths.pkl')
+        no_of_docs = len(self.load('docmap.pkl'))
+        avg_doc_length = self._get_avg_doc_length(doc_length_cache, no_of_docs)
+
+        doc_length = doc_length_cache[doc_id]
 
         if tf == 0 or doc_length == 0:
             return 0    
@@ -150,6 +154,7 @@ class InvertedIndex:
         doc_length_cache = self.load('doc_lengths.pkl')
         no_of_docs = len(self.load('docmap.pkl'))
         
+        avg_doc_length = self._get_avg_doc_length(doc_length_cache, no_of_docs)
         # maps document IDs to their total BM25 score
         scores = {}
  
@@ -161,7 +166,7 @@ class InvertedIndex:
                 # gets the document that contains the token
                 #term_match_doc_count = self._cal_df(token) (high overhead)
                 term_match_doc_count = len(index_cache[token])
-
+                
                 # cal. BM25 IDF
                 bm25_idf = log( (no_of_docs - term_match_doc_count + 0.5) / (term_match_doc_count + 0.5) + 1 )
                 # cal. BM25 TF
@@ -170,18 +175,18 @@ class InvertedIndex:
                 if doc_length == 0 or tf == 0:
                     ###if doc_length or tf == 0, don't cal rest of the math###
                     
-                    # make bm25_tf = 0
-                    continue    # as product of 0 is 0
+                    # make bm25_tf = 0 
+                    continue    # as total_bm25_score += bm25_idf * 0 = 0
                 else:
-                    length_norm = 1 - BM25_B + BM25_B * (doc_length / self._get_avg_doc_length(doc_length_cache, no_of_docs))
+                    length_norm = 1 - BM25_B + BM25_B * (doc_length / avg_doc_length)
                     bm25_tf = (tf * (BM25_K1 + 1)) / (tf + BM25_K1 * length_norm)
 
                 total_bm25_score += bm25_idf * bm25_tf
 
-            scores[doc_id] = round(total_bm25_score, 2)
+            scores[doc_id] = total_bm25_score
             
         scores = dict(sorted(scores.items(), key=itemgetter(1), reverse=True))
-    
+
         # results dictionary
         res = {}
         i = 1
@@ -194,7 +199,7 @@ class InvertedIndex:
 
         # return top limit (default 5) results
         return res 
-
+        
     def build(self):
         """
         Builds the Inverted Index for faster 
