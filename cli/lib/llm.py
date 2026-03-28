@@ -30,7 +30,7 @@ class LlmPrompt:
                     User query: "{query}"
                   """
 
-        return self._response(prompt)
+        return self._response(prompt).text
     
     def rewrite(self, query):
         """
@@ -55,7 +55,7 @@ class LlmPrompt:
                             User query: "{query}"
                 """
 
-        return self._response(prompt)
+        return self._response(prompt).text
     
     def expand(self, query):
         """
@@ -75,7 +75,7 @@ class LlmPrompt:
                         User query: "{query}"
                 """
         
-        return self._response(prompt)
+        return self._response(prompt).text
     
     ############## FUNCTION for RERANKING ##############
     def rerank_individual(self, query, result):
@@ -94,7 +94,7 @@ class LlmPrompt:
 
                                 Score:"""
         
-        score = self._response(prompt)
+        score = self._response(prompt).text
 
         return int(score) if score != None else 0
 
@@ -119,7 +119,7 @@ class LlmPrompt:
 
                     Ranking:"""
         
-        ranking = self._response(prompt)
+        ranking = self._response(prompt).text
 
         return ranking
  
@@ -170,7 +170,7 @@ class LlmPrompt:
 
                 [2, 0, 3, 2, 0, 1]"""
         
-        llm_evaluation = self._response(prompt)
+        llm_evaluation = self._response(prompt).text
 
         return llm_evaluation
 
@@ -193,7 +193,7 @@ class LlmPrompt:
 
             Answer:"""
         
-        rag_response = self._response(prompt)
+        rag_response = self._response(prompt).text
 
         return rag_response
     
@@ -213,7 +213,7 @@ class LlmPrompt:
 
             Provide a comprehensive 3–4 sentence answer that combines information from multiple sources:"""
         
-        return self._response(prompt)
+        return self._response(prompt).text
 
     def llm_citation(self, query, search_result):
 
@@ -241,7 +241,7 @@ class LlmPrompt:
 
             Answer:"""
         
-        return self._response(prompt)
+        return self._response(prompt).text
 
     def llm_qna(self, question, search_result):
 
@@ -272,7 +272,7 @@ class LlmPrompt:
 
             Answer:"""
         
-        return self._response(prompt)
+        return self._response(prompt).text
     
     def image_search(self, query, image_content, mime):
         """
@@ -280,12 +280,6 @@ class LlmPrompt:
         :params mime:   media type (similar to file format)
         """
         system_prompt = f"""Given the included image and text query, rewrite the text query to improve search results from a movie database.
-
-            Image:
-            {image_content}
-
-            Query:
-            {query}
 
             Make sure to:
                 - Synthesize visual and textual information
@@ -302,8 +296,8 @@ class LlmPrompt:
     
     def _response(self, prompt):
         response = self.client.models.generate_content(
-            model=self.model, 
-            contents=prompt
+            model = self.model, 
+            contents = prompt
         )
 
-        return response.text
+        return response
