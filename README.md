@@ -503,3 +503,177 @@ For LLM Evaluation
 
     eg. 
         uv run cli/hybrid_search_cli.py rrf_search "query" --evaluation
+
+Augmented Generation
+--------------------
+Generally, <b>Augmented Generation summaries the results.</b>
+
+
+(RAG) combines search with LLM generation. Instead of asking an LLM to generate answers from its training data alone, we:
+
+1. Retrieve relevant documents using search<br>
+2. Augment the LLM's context with those documents<br>
+3. Generate responses based on the retrieved information<br>
+
+• Accurate information from our search<br>
+• Natural language responses from LLMs<br>
+
+<u><h3>Multi-Document Summarization</h3></u>
+
+Multiple documents can give more points of view.
+
+When users search, they get many results:
+
+• Some documents have parts of the needed information.<br>
+• Some documents have wrong or conflicting information.<br>
+• Documents have different (sometimes biased) perspectives on the information.<br>
+
+e.g 
+
+Query: "bear movies for kids"
+
+Search Results:
+
+1. Paddington – Polite bear, marmalade, family-friendly<br>
+2. Brother Bear – Animated Disney, transformation story<br>
+3. The Jungle Book – Baloo the bear, musical numbers<br>
+4. We Bare Bears – TV series, modern setting<br>
+
+    Summary:
+
+        "For family-friendly bear movies...."
+
+<u><h3>Conflict Resolution in Summaries</h3></u>
+
+Factual conflicts:
+
+   • Doc 1: "Released in 2014"<br>
+   • Doc 2: "Released in 2015"<br>
+
+Opinion conflicts:
+
+   • Doc 1: "Masterpiece of cinema"<br>
+   • Doc 2: "Overrated and boring"<br>
+
+Emphasis conflicts:
+
+   • Doc 1: "Focuses on action scenes"<br>
+   • Doc 2: "Focuses on emotional journey"<br>
+
+<b>Sol<sup>n</sup></b>:- to build an entire LLM-step into your pipeline that simply identifies any conflicts
+ in the results before attempting to summarize them.
+
+<u><h3>Citations</h3></u>
+Summary without sources is just claims without evidence.
+
+Citations matter for:
+
+• Trust: Users can verify claims
+• Exploration: Jump to full sources
+• Attribution: Credit original content
+• Legal: Avoid plagiarism issues
+
+
+<u><h3>LLM Question Answering</h3></u>
+
+Traditional search returns documents. Users are then <i>expected to poke through those documents to find answers</i> on their own.
+
+User query: "What year was The Revenant released?"
+
+    • Search: List of movie documents...
+    • RAG (question answering): "2015"
+
+
+Recursive RAG
+-------------
+ `using what you found (or didn't find) to guide your next search.`
+
+Agentic Search
+--------------
+Recursive RAG is like a simple AI agent,
+
+and we can make it more "agentic" by giving it more tools to use in its loop. 
+
+    We could even `break up our step-by-step RAG pipeline into a set of tools, and allow the LLM to "run" the pipeline in the order it thinks is best` for a given query.
+
+<pre>
+    <code>
+    while not done:
+        # Choose tool based on what we learned
+        tool = pick_next_tool(previous_results)
+
+        # Search with that tool
+        results = tool.search(query)
+
+        # Update our knowledge
+        previous_results.append(results)
+    </code>
+</pre>
+
+
+The magic is in pick_next_tool() – it looks at what we found and decides what to do next. Imagine we had these tools:
+
+• Keyword search: Finds movies by keywords<br>
+• Semantic search: Narrows by year, rating, or genre<br>
+• Regex search: Finds movies by matching text patterns like "bear attack" or "wilderness survival"<br>
+• Genre search: Filters movies by specific genres like horror, adventure, or drama<br>
+• Actor search: Finds movies starring specific actors like Leonardo DiCaprio or Hugh Jackman<br>
+
+For example, say we ask our RAG agent:
+
+`"Find scary bear movies that were in a forest"`
+
+1. It picks the genre search tool first to narrow down to horror/thriller movies.<br>
+2. Then it uses regex search to find bear-related titles.<br>
+3. It uses another regex search to find movies that also mention "forest."<br>
+4. It uses semantic search to find movies about related terms like "wilderness" or "survival."<br>
+5. Finally, it uses all the results to generate a summary with citations.<br>
+
+
+Each tool choice is influenced by the previous results, and is chosen for the specific query and results, rather than having the order preprogrammed in advance. That's how a human using a search engine would do it, after all!
+
+    Note: adding a real-time LLM to search does make it a lot slower, and agentic loops? Even more so. Only use this approach when you really need that extra bit of intelligence and flexibility.
+
+Multimodal Search
+-----------------
+
+"Multimodal" models like Gemini (and its open-source sibling Gemma) can understand both text and images, opening up entirely new search possibilities. One way that we can handle non-text input in our RAG is with multimodal query rewriting.
+
+
+Multimodal Embeddings
+---------------------
+
+• <b>Images</b>: Pixels, colors, shapes, spatial relationships
+• <b>Text</b>: Words, syntax, semantics, sequential patterns
+
+
+Multimodal models learn this mapping through contrastive learning:
+
+1. Paired data: Images with their descriptions
+       • A photo of a bear → "A brown bear in the forest"<br>
+       • Movie poster → "The Revenant movie poster"<br>
+
+2. Training objective: Make similar pairs close, different pairs far apart
+       • Bear image + "bear" text = high similarity<br>
+       • Bear image + "car" text = low similarity<br>
+
+3. Shared space: Both images and text get encoded into the same vector dimensions
+
+Images and text are encoded separately and turned into embeddings with different encoder models
+• (input: tokenized text) • (input: pixel value)
+
+These encoder models are trained in concert as if they were a single model, so that matching image/text pairs have embeddings as similar as possible, and non-matching pairs as dissimilar as possible. If the pairs were not trained simultaneously, this wouldn't be possible!
+
+Contrastive learning: it's a technique for training multiple models at the same time by comparing and contrasting outputs rather than through predicting labels.
+
+
+ 
+<h5>The Result</h5>
+
+After training, both modalities live in the same space:
+
+    • Image of a bear → [0.8, -0.2, 0.5, ...]
+    • Text "bear" → [0.7, -0.1, 0.6, ...]
+    • Text "car" → [-0.3, 0.9, -0.4, ...]
+
+The bear image and "bear" text are semantically similar despite being different data types.
